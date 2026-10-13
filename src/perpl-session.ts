@@ -327,6 +327,11 @@ export function createPerplSession(
           `Perpl refused the order request (HTTP ${response.status}).`,
         );
       // Perpl answers 423 when the profile already holds its maximum of 16 keys.
+      // 404 here is Perpl's "target profile not found": no deposit has created the account yet.
+      if (["payload", "enroll"].includes(route) && response.status === 404)
+        throw Error(
+          "This wallet doesn't have a Perpl account yet. Deposit at least 100 test AUSD first: the first deposit creates it. Then turn on one-tap trading.",
+        );
       if (route === "enroll" && response.status === 423)
         throw Error(
           "This wallet has reached Perpl's limit of 16 access keys. Revoke unused keys on Perpl, then authorize again.",

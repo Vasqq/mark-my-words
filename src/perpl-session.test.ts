@@ -66,6 +66,7 @@ function harness(
     enrolled?: (info: Record<string, unknown>) => void;
     readFailure?: () => number | undefined;
     readWait?: (signal: AbortSignal) => Promise<void>;
+    payloadFailure?: number;
   } = {},
 ) {
   const saved = new Map<string, string>();
@@ -86,6 +87,8 @@ function harness(
     calls++;
     const body = JSON.parse(init!.body as string);
     if (url === "/perpl-account/payload") {
+      if (options.payloadFailure)
+        return new Response("redacted", { status: options.payloadFailure });
       const bytes = new Uint8Array(hexToBytes(body.public_key));
       publicKey = await crypto.subtle.importKey(
         "raw",
@@ -468,6 +471,13 @@ describe("Perpl session boundary", () => {
     );
     expect(app.status().state).toBe("unavailable");
     expect(h.enrolls).toBe(2);
+  });
+  it("explains a missing Perpl account instead of a bare 404 when a new login enrolls before depositing", async () => {
+    const h = harness({ payloadFailure: 404 });
+    await expect(h.create().prepare()).rejects.toThrow(
+      "doesn't have a Perpl account yet",
+    );
+    expect(h.enrolls).toBe(0);
   });
   it("keeps ambiguous enrollment blocked after reload and rejects overlapping confirmations", async () => {
     const h = harness({ loseEnrollment: true });
