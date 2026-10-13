@@ -32,8 +32,8 @@ export function assessCloseReview(
       "Refresh actual residual exposure and opposing depth before closing.",
     );
   const m = position.market;
+  // Not configBlock: Perpl's servers stamp the same context version with different blocks.
   if (
-    m.configBlock !== observation.metadata.configBlock ||
     m.contextVersion !== observation.metadata.contextVersion ||
     m.tick !== observation.metadata.tick ||
     m.lot !== observation.metadata.lot

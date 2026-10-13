@@ -13,6 +13,20 @@ const labels = {
   "claim-test-ausd": "test AUSD claim",
   "enable-forwarding": "order forwarding",
 };
+// Plain status for a funding step. "unknown" still blocks a resend until it is checked.
+const attemptNote = {
+  requesting: (step: string) => `Confirm the ${step} in your wallet.`,
+  pending: (step: string) =>
+    `Waiting for Monad to confirm your ${step}. This usually takes a few seconds.`,
+  unknown: (step: string) =>
+    `We couldn't confirm your ${step} yet. Check the transaction before trying again.`,
+  confirmed: (step: string) => `Your ${step} is confirmed.`,
+  reverted: (step: string) =>
+    `Your ${step} didn't go through. Nothing was moved.`,
+  rejected: (step: string) => `You cancelled the ${step} in your wallet.`,
+  replaced: (step: string) =>
+    `Another transaction from this wallet replaced your ${step}. Review it again.`,
+} as const;
 export function LiveControls({
   controller,
   state,
@@ -23,7 +37,54 @@ export function LiveControls({
   const [amount, setAmount] = useState("100");
   const [hash, setHash] = useState("");
   if (!state.control) return null;
+  const account = state.account;
+  // First-time setup, read from the latest finalized account: gas, then test AUSD, then the
+  // deposit that creates the Perpl account, then forwarding. Unknown state shows no step.
+  const minimum = account?.funding.minimumInitialDeposit ?? 0n;
+  const setup = !account
+    ? undefined
+    : account.walletMon === 0n
+      ? {
+          step: "gas",
+          title: "Step 1 of 4: get free test MON for gas",
+          body: "Your new wallet starts empty. Copy its address, paste it into the Monad faucet, then come back here. It can take a minute to arrive.",
+        }
+      : !account.exchangeAccount && account.walletAusd < minimum
+        ? {
+            step: "faucet",
+            title: "Step 2 of 4: claim test AUSD",
+            body: "Press Review test funds, then confirm in your wallet. It's free test money for trading.",
+          }
+        : !account.exchangeAccount
+          ? {
+              step: "deposit",
+              title: "Step 3 of 4: deposit to create your Perpl account",
+              body: `Deposit at least ${formatUnits(minimum, 6)} test AUSD. Your wallet asks you to approve it, then to deposit.`,
+            }
+          : state.session.state !== "active" &&
+              state.attempt?.kind === "enable-forwarding" &&
+              state.attempt.status === "confirmed"
+            ? {
+                step: "ready",
+                title: "You're set up",
+                body: "Last thing: turn on one-tap trading, then write your sentence and press Review.",
+              }
+            : state.session.state !== "active"
+              ? {
+                  step: "forwarding",
+                  title: "Step 4 of 4: allow order forwarding",
+                  body: "Do this once if you haven't yet, then turn on one-tap trading in your account and you're ready to trade.",
+                }
+              : undefined;
+  const next = setup?.step ?? "deposit";
   const close = () => controller.control();
+  // Close on success so the sheet doesn't sit on a Refresh button that looks inert. Only
+  // this sheet, and only if the session ended up active (a lapsed key needs the sheet).
+  const closeIfActive = (ok: boolean | undefined) => {
+    const now = controller.getSnapshot();
+    if (ok && now.control === "enroll" && now.session.state === "active")
+      close();
+  };
   if (state.control === "manage")
     return (
       <Sheet title="Review linked-exit cancellation" onClose={close}>
@@ -59,13 +120,14 @@ export function LiveControls({
   return state.control === "enroll" ? (
     <Sheet title="One-tap trading" onClose={close}>
       <p className="ep-note">
-        Authorize read and trade access for 24 hours. API keys cannot withdraw
-        funds. Each trade still needs a fresh explicit review.
+        Trade without a wallet pop-up for the next 24 hours. This access can
+        open and close trades but can never withdraw your funds, and you still
+        review every trade before it's sent.
       </p>
       <div className="rows">
         <div className="r">
           <span className="k">Can use</span>
-          <span className="v">Read · trade (scope 3)</span>
+          <span className="v">View and trade</span>
         </div>
         <div className="r">
           <span className="k">Lasts</span>
@@ -82,29 +144,30 @@ export function LiveControls({
         </p>
       )}
       <p className="ep-note">
-        The signing key is non-extractable and stays in this browser for this
-        wallet, so a reload or logging back in keeps access. Discarding or
-        replacing does not revoke the key on Perpl.{" "}
+        The access key stays locked in this browser, so reloading or logging
+        back in keeps it on. Removing it here doesn't revoke it on Perpl.{" "}
         <a
           href="https://testnet.perpl.xyz/apikeys"
           target="_blank"
           rel="noreferrer"
         >
-          Manage revocation on Perpl
+          Manage keys on Perpl
         </a>
         .
       </p>
       {state.session.state === "unavailable" && (
         <p role="status" className="ep-note">
-          The earlier key may remain active until expiry. Review a replacement
-          explicitly to restore this browser's access.
+          Your earlier access isn't available in this browser. Start a new
+          24-hour session to trade again.
         </p>
       )}
       {state.session.state === "ready" ? (
         <button
           className="big"
           disabled={state.busy}
-          onClick={() => void controller.enroll()}
+          onClick={async () => {
+            closeIfActive(await controller.enroll());
+          }}
         >
           Authorize 24-hour session in wallet
         </button>
@@ -113,7 +176,9 @@ export function LiveControls({
           <button
             className="big"
             disabled={state.busy}
-            onClick={() => void controller.refresh()}
+            onClick={async () => {
+              closeIfActive(await controller.refresh());
+            }}
           >
             Refresh authenticated account
           </button>
@@ -132,8 +197,8 @@ export function LiveControls({
           onClick={() => void controller.prepareSession()}
         >
           {state.session.state === "unavailable"
-            ? "Review replacement session"
-            : "Review API access"}
+            ? "Review new session"
+            : "Review one-tap access"}
         </button>
       )}
       {state.error && (
@@ -151,10 +216,50 @@ export function LiveControls({
       }
       onClose={close}
     >
-      <p className="ep-note">
-        Monad testnet · test AUSD. Review each faucet, exact approval, deposit
-        or forwarding step before confirming it in the owner wallet.
-      </p>
+      {state.funding?.review.steps[0].kind !== "withdraw" &&
+        (setup ? (
+          <div className="ep-note" role="status">
+            <b>{setup.title}</b>
+            <br />
+            {setup.body}
+            {setup.step === "ready" && (
+              <>
+                <br />
+                <button
+                  className="ghost solid"
+                  onClick={() => controller.control("enroll")}
+                >
+                  Turn on one-tap trading
+                </button>
+              </>
+            )}
+            {setup.step === "gas" && account && (
+              <>
+                <br />
+                <button
+                  className="ghost"
+                  onClick={() =>
+                    void navigator.clipboard?.writeText(account.owner)
+                  }
+                >
+                  Copy wallet address
+                </button>{" "}
+                <a
+                  href="https://faucet.monad.xyz"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Open the Monad faucet
+                </a>
+              </>
+            )}
+          </div>
+        ) : (
+          <p className="ep-note">
+            Each step asks you to confirm in your wallet and uses a little test
+            MON for gas.
+          </p>
+        ))}
       {state.funding?.review.steps[0].kind !== "withdraw" && (
         <label className="numin">
           <span>$</span>
@@ -172,21 +277,21 @@ export function LiveControls({
       )}
       <div className="acts">
         <button
-          className="ghost solid"
+          className={next === "deposit" ? "ghost solid" : "ghost"}
           disabled={state.busy || unresolved(state.attempt ?? null)}
           onClick={() => void controller.fundingReview("deposit", amount)}
         >
           Review deposit
         </button>
         <button
-          className="ghost"
+          className={next === "faucet" ? "ghost solid" : "ghost"}
           disabled={state.busy || unresolved(state.attempt ?? null)}
           onClick={() => void controller.fundingReview("faucet", amount)}
         >
           Review test funds
         </button>
         <button
-          className="ghost"
+          className={next === "forwarding" ? "ghost solid" : "ghost"}
           disabled={state.busy || unresolved(state.attempt ?? null)}
           onClick={() => void controller.fundingReview("forwarding", amount)}
         >
@@ -202,14 +307,16 @@ export function LiveControls({
                 {labels[state.funding.review.steps[0].kind]}
               </span>
             </div>
+            {state.funding.review.amount > 0n && (
+              <div className="r">
+                <span className="k">Amount</span>
+                <span className="v">
+                  {formatUnits(state.funding.review.amount, 6)} test AUSD
+                </span>
+              </div>
+            )}
             <div className="r">
-              <span className="k">Exact amount</span>
-              <span className="v">
-                {formatUnits(state.funding.review.amount, 6)} test AUSD
-              </span>
-            </div>
-            <div className="r">
-              <span className="k">Estimated fee ceiling</span>
+              <span className="k">Max gas fee</span>
               <span className="v">
                 {state.funding.review.nextStepEstimate
                   ? formatUnits(
@@ -222,9 +329,9 @@ export function LiveControls({
           </div>
           {state.funding.review.steps[0].kind === "enable-forwarding" && (
             <p className="ep-note">
-              Persistent permission for the Perpl Exchange administrator to
-              forward orders. API key expiry does not revoke this permission;
-              this action places no order.
+              Lets Perpl send the trades you approve to the exchange for you. It
+              stays on after your 24-hour session ends, and it places no order
+              by itself.
             </p>
           )}
           {state.funding.review.snapshot.walletMon === 0n && (
@@ -259,8 +366,7 @@ export function LiveControls({
       )}
       {state.attempt && (
         <p role="status" className="ep-note">
-          {labels[state.attempt.kind]} · {state.attempt.status}. A submitted
-          request is not finality.
+          {attemptNote[state.attempt.status](labels[state.attempt.kind])}
         </p>
       )}
       {unresolved(state.attempt ?? null) && (

@@ -434,8 +434,8 @@ export class PerplMarketDataSource implements MarketDataSource {
       }
       if (
         previous &&
+        // configBlock is not ordered: servers stamp one context version with different blocks.
         (metadata.contextVersion < previous.metadata.contextVersion ||
-          metadata.configBlock < previous.metadata.configBlock ||
           observation.bookBlock < previous.bookBlock ||
           observation.stateBlock < previous.stateBlock ||
           observation.bookTime < previous.bookTime ||

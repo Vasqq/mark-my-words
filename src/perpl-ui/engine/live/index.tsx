@@ -836,7 +836,7 @@ export function useLiveEngine(identity: LiveIdentity): PerplEngine {
     control.error ??
     identity.reason ??
     (control.session.state === "active"
-      ? "Refresh account review for current account details."
+      ? undefined
       : identity.user
         ? "Account details are unavailable until account access is enabled."
         : "Log in for account details");
@@ -1001,7 +1001,7 @@ export function useLiveEngine(identity: LiveIdentity): PerplEngine {
           }
         : {
             state: "unavailable",
-            reason: detailsReason,
+            reason: detailsReason ?? "Review to read account details.",
           },
   });
   type Native = NonNullable<typeof trading>["positions"][number];

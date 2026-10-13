@@ -517,6 +517,25 @@ it("never sends a target after an unknown unobserved stop or authority change du
   expect(other.controller.getSnapshot().error).toContain("Account");
   other.controller.dispose();
 });
+it("retires an unknown linked exit once its position and order are gone, without resending", async () => {
+  const e = environment();
+  const review = await reviewed(e);
+  fixture.unknownStop = true;
+  await settle(e.controller.confirmEntry(review.id, e.draft, e.observation));
+  const stop = () => e.controller.getSnapshot().journal!.management![0];
+  expect(stop().phase).toBe("unknown");
+  // Perpl cancels a position-linked trigger when the position closes.
+  fixture.state!.positions = [];
+  fixture.state!.orders = [];
+  fixture.state!.lastRequestId = stop().payload.rq - 1;
+  await e.controller.recover();
+  expect(stop().phase).toBe("unknown"); // The request could still arrive.
+  fixture.state!.lastRequestId = stop().payload.rq;
+  await e.controller.recover();
+  expect(stop().phase).toBe("superseded");
+  expect(fixture.payloads).toHaveLength(2);
+  e.controller.dispose();
+});
 it("refuses a changed residual position without duplicating the entry or the stop", async () => {
   const e = environment();
   const review = await reviewed(e);
