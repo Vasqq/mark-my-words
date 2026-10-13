@@ -39,7 +39,7 @@ Perps venues build pro terminals that start from size and leverage, and the simp
 
 So far on testnet we've run about 40 real Perpl actions across 2 accounts. That includes a brand-new email user going from login to a closed trade alone, ETH and BTC in both directions, opens at 12x and 15x, and a take profit and a stop loss that Perpl fired on its own. Selected transactions are listed under [Onchain proof](#onchain-proof).
 
-**Go-to-market.** Sharing a trade is how new users find the app. A user writes a call, places it with its stop, and shares a "Call your shot" card that links back to the app. We'll seed a public testnet beta through Monad community channels with a hand-picked first cohort and watch each first trade to find where people get stuck. Perpl supplies the order book and liquidity. We handle onboarding: email login, the embedded wallet and one-sentence orders.
+**Go-to-market.** Traders bring their followers. A user writes a call, adds a thesis saying why, and the people who follow them get notified and can copy the trade with their own size and stop. We'll seed a public testnet beta through Monad community channels with a hand-picked first cohort and watch each first trade to find where people get stuck. Perpl supplies the order book and liquidity. We handle onboarding: email login, the embedded wallet and one-sentence orders.
 
 ## What works on testnet
 
@@ -119,8 +119,7 @@ Selected transactions from a fresh email user's account, Oct 12 to 13, 2026:
 
 ## Try it
 
-<!-- TODO: replace with the deployed Render URL before submission -->
-**Live app:** _deployment link coming_
+**Live app:** [mark-my-words-eu.onrender.com](https://mark-my-words-eu.onrender.com) (Monad testnet. The free host sleeps when idle, so the first load can take about a minute.)
 
 Nothing to install. You need an email address and about two minutes to fund the account.
 
@@ -217,44 +216,45 @@ These limits are deliberate. They live in [`src/testnet-limits.ts`](src/testnet-
 
 I'm a solo builder and new to Monad. Items marked *(Perpl)* depend on Perpl's API, listings or approval.
 
-### Phase 1: Public testnet beta (Q4 2026)
+Next we make trading social. You follow traders whose calls you trust, read why they opened a position, and copy the ones you agree with, all on the same review and stop rules the app uses today.
+
+### Phase 1: Copy trading, audit and a faster app (Q4 2026)
 
 | Deliverable | Success metric |
 |---|---|
-| Public testnet deployment | Live URL, and 50 wallets complete a full journey from open to close |
-| Interviews with first-time perp traders | 15 sessions, with the top 3 friction points fixed and published |
-| Open-source the Perpl TypeScript client and order-safety layer: acknowledgment vs fill, unknown-outcome lock, duplicate-send guard | Published with docs and tests, and 1 outside project using or forking it |
-| Weekly public build log | 12 weekly updates in a row |
-| Written integration feedback to Perpl and Privy | 2 reports covering API-key limits, session UX and docs gaps |
-
-### Phase 2: Audit and hardening (Q1 to Q2 2027)
-
-| Deliverable | Success metric |
-|---|---|
-| Add to or reduce a position, add collateral *(Perpl)* | 0 unreconciled outcomes across 500+ testnet orders |
-| Longer sessions that don't use up Perpl API keys *(Perpl)* | At most 1 API key per user per day |
-| Mobile-first layout | Full journey works on a 375 px screen |
-| Conditional sentences such as "If ETH drops to $2,300, go long", placed as resting orders on Perpl so no key has to sign while you're away | Same review and stop rules as market entries |
-| Scoped security audit of the money math, session-key signing, order relay and duplicate-send prevention | Report published, all high and critical issues fixed |
-| Monitoring for orders with an unknown outcome | Alert within 60 s, runbook published |
+| Public testnet deployment, with a simple public page for each trader showing their open trades | Live URL, and 50 wallets complete a full journey from open to close |
+| "Copy this trade": one tap on someone else's position opens the same trade in your account, at your own size and with your own required stop. You review and confirm it | Copied trades go through the same review, reconciliation and duplicate-send checks as normal entries |
+| UI and performance overhaul | Time from fill to both exits placed cut by at least half (about 35 s in our testnet runs) |
+| Hackathon-era bugs and the issues beta users report | Every issue triaged within a week, and the fixes published in a public changelog |
+| Scoped security audit of the money math, session-key signing, order relay, duplicate-send prevention and copy trading | Report published, all high and critical issues fixed |
 
 > [!IMPORTANT]
-> **No mainnet before the audit.** We have no custom contracts, so the audit covers the code that carries the user's intent and signing authority: the client, the session keys and the relay.
+> **No mainnet before the audit.** We have no custom contracts, so the audit covers the code that carries the user's intent and signing authority: the client, the session keys, the relay and copy trading.
 
-### Phase 3: Staged mainnet and growth (Q3 to Q4 2027)
+### Phase 2: Profiles, follows and theses (Q1 to Q2 2027)
 
 | Deliverable | Success metric |
 |---|---|
-| Geo-restriction and terms reviewed by counsel, following Perpl's access policy | In place before any mainnet order |
+| Usernames and profiles | Every account can claim a username |
+| Follow traders and get notified when they open or close a trade | 30% of active users follow at least one trader |
+| Theses: a short note on why you took the trade, such as "New DefiLlama write-up has me bullish", shown with the position | 25% of trades carry a thesis |
+| Verified track records built from Perpl's signed history, so results can't be edited or faked | Every profile shows win rate and P&L |
+| Open-source the Perpl TypeScript client and order-safety layer: acknowledgment vs fill, unknown-outcome lock, duplicate-send guard | Published with docs and tests, and 1 outside project using or forking it |
+| Add to or reduce a position, add collateral, longer sessions that don't use up API keys *(Perpl)* | At most 1 API key per user per day |
+
+### Phase 3: Automatic copy trading and staged mainnet (Q3 to Q4 2027)
+
+| Deliverable | Success metric |
+|---|---|
+| Automatic copy trading: you pre-approve a capped trading key, then trades from people you follow are copied with your size limit, maximum leverage and a required stop | Copies only fire when the leader commits a meaningful share of their own account, such as 5% or more, which is harder to game than a fixed dollar amount |
+| Geo-restriction and terms reviewed by counsel, covering copy trading, following Perpl's access policy | In place before any mainnet order |
 | Staged mainnet: an allowlist with per-user size caps, then higher caps, then open access *(Perpl)* | 100 allowlisted traders and 0 lost-funds incidents at each stage |
 | Public bug bounty | Live from mainnet launch |
-| "Call your shot" share cards: post the sentence before the trade, and the result card can be checked onchain | 20% of closed trades shared |
-| Card or bank onramp through Privy | Under 5 minutes from signup to first trade |
 | Trading volume | $1M cumulative notional in the first 90 days of open mainnet |
 
-Perpl runs the order book, so our job is to bring traders. We'll consider other Monad perps venues once the product has found its market.
+Perpl runs the order book, so our job is to bring traders. Follows and copy trading are how new traders arrive: each one who joins to copy someone can become a trader others follow.
 
-We'll ask Perpl whether a builder or referral fee is available before we pick a revenue model. After Phase 1 we plan to apply to Monad's accelerator and grant programs to pay for the audit and the move to mainnet.
+We'll ask Perpl whether a builder or referral fee is available before we pick a revenue model. We plan to apply to Monad's accelerator and grant programs during Phase 1 to pay for the audit and the move to mainnet.
 
 ### What we need from Monad
 
@@ -276,11 +276,23 @@ Built for Monad Metropolis (October 2026). Primary track: Onchain Finance & Trad
 - Privy: email login creates the embedded wallet, which signs every funding transaction and the one-hour trading session.
 - Perpl: the live book, candles, signed history, entries, trigger exits, amendments and reduce-only closes all go through Perpl's API.
 
-## Built with
+## Built with and credits
 
-[React 19](https://react.dev) · [Vite](https://vite.dev) · [viem](https://viem.sh) · [Privy](https://privy.io) · [Radix UI](https://www.radix-ui.com) · [Perpl](https://perpl.xyz) · [Monad](https://monad.xyz) · Inter Tight and JetBrains Mono via Fontsource
+| Used for | Project | License |
+|---|---|---|
+| UI | [React](https://react.dev) and React DOM 19 | MIT |
+| Dialogs, popovers, sliders | [Radix UI](https://www.radix-ui.com) | MIT |
+| Chain reads and transactions | [viem](https://viem.sh) | MIT |
+| Login and embedded wallet | [Privy](https://privy.io) (`@privy-io/react-auth`) | Apache-2.0 |
+| Installed alongside Privy | `@stripe/stripe-js` | MIT |
+| Fonts | [Inter Tight](https://fonts.google.com/specimen/Inter+Tight) and [JetBrains Mono](https://www.jetbrains.com/lp/mono/) via Fontsource | OFL-1.1 |
+| Build and tests | Vite, TypeScript, Vitest, Playwright, Prettier | MIT or Apache-2.0 |
 
-AI disclosure: the interface design was iterated in Claude, and the code was written with help from Claude Code and OpenAI Codex. Every testnet action was run and checked in the real app.
+Services: [Monad testnet](https://monad.xyz) and its [MON faucet](https://faucet.monad.xyz), the [Perpl](https://perpl.xyz) testnet exchange and API, [Privy](https://privy.io), and Agora's test AUSD faucet contract.
+
+The logo, brand files and screenshots were made for this project, and every screenshot is a capture of this app. The design reference in `docs/frontend/reference/` was also made for this project. It bundles React (MIT) and [htm](https://github.com/developit/htm) (Apache-2.0).
+
+AI disclosure: we used Claude Opus 5.5 to iterate on the frontend design before coding it for real, so the UI and UX were worked out first. The app itself was written with help from Claude Code and OpenAI Codex. Every testnet action was run and checked in the real app.
 
 <div align="center">
 <br>
