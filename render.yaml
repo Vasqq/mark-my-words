@@ -3,11 +3,12 @@
 # PERPL_APP_ORIGIN with that exact origin. Either way the origin must be in Privy's allowed origins.
 services:
   - type: web
-    name: mark-my-words
+    # Renamed from mark-my-words when the region moved: a region can't change on an existing service.
+    name: mark-my-words-eu
     runtime: node
     plan: free
-    # Fixed at creation. Closest to US East users.
-    region: virginia
+    # Fixed at creation. Perpl's account API answers HTTP 451 to US server IPs (seen from virginia).
+    region: frankfurt
     # Exactly one process: rate limits, caches and chart samples live in memory.
     numInstances: 1
     autoDeployTrigger: commit
