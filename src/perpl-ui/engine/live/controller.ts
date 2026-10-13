@@ -67,6 +67,8 @@ import type { PublicDraft } from "../../../public-draft";
 import type { PublicMarketObservation } from "../../../perpl-market-data";
 import type { CommandOutcome } from "../types";
 
+const noExchangeAccount =
+  "This wallet doesn't have a Perpl account yet. Deposit at least 100 test AUSD first: the first deposit creates it. Then turn on one-tap trading.";
 const encode = (value: unknown) =>
   JSON.stringify(value, (_, v: unknown) =>
     typeof v === "bigint" ? v.toString() : v,
@@ -219,9 +221,7 @@ export function createLiveController(
   const active = () => {
     const identity = session.identity();
     if (!identity)
-      throw Error(
-        "Restore 24-hour account access before reviewing this action.",
-      );
+      throw Error("Turn on one-tap trading before reviewing this.");
     return identity;
   };
   const readState = async (
@@ -612,6 +612,7 @@ export function createLiveController(
             if (history.complete) completeHistory = history;
           }
         }
+        return true;
       }),
     control(
       control?: "fund" | "enroll" | "manage" | "owner-recovery",
@@ -676,6 +677,14 @@ export function createLiveController(
     prepareSession: () =>
       run(async () => {
         invalidate();
+        // Perpl answers enrollment with 404 until the wallet's first deposit creates its
+        // exchange account, so a new login is sent to funding instead of a dead end.
+        const account = await readTestnetAccount(owner);
+        publish({ account });
+        if (!account.exchangeAccount) {
+          publish({ control: "fund" });
+          throw Error(noExchangeAccount);
+        }
         await session.prepare({
           replaceUnavailable: session.status().state === "unavailable",
         });
@@ -693,6 +702,7 @@ export function createLiveController(
         publish({ session: session.status() });
         await observed();
         await recover();
+        return true;
       }),
     discardSession() {
       void session.forget();
@@ -1028,10 +1038,23 @@ export function createLiveController(
         pending ||
         state.review ||
         state.management ||
-        state.control ||
         inFlight() // The follow-up loop is already reading; do not spend its budget.
       )
         return;
+      if (state.control) {
+        // An open Add funds sheet with nothing under review keeps reading the chain, so
+        // its setup step moves on when faucet MON or test AUSD arrives.
+        // A submitted funding step is checked against its own recorded hash here too, so
+        // nobody has to know to press Check transaction. Receipt reads only; nothing is sent.
+        if (state.control === "fund" && !state.funding)
+          void run(async () => {
+            const attempt = funding.read();
+            if (attempt?.status === "pending" && attempt.hash)
+              publish({ attempt: await funding.reconcile() });
+            await readChain();
+          }, true);
+        return;
+      }
       // Without a session the balance and positions still refresh from the chain.
       if (session.status().state !== "active") {
         void run(() => readChain(), true);

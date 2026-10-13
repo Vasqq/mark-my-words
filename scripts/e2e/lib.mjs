@@ -195,13 +195,16 @@ export async function fundingStep(page, reviewButton, amount) {
     status: (await after.innerText()).replace(/\n/g, " ").slice(-220),
   };
 }
-export const journal = (page) =>
-  page.evaluate(() => {
-    const key = Object.keys(localStorage).find((k) =>
-      k.startsWith("perpl-orders-v1"),
+// The profile can hold journals for several wallets; PERPL_E2E_OWNER picks one.
+export const journal = (page, owner = process.env.PERPL_E2E_OWNER) =>
+  page.evaluate((owner) => {
+    const key = Object.keys(localStorage).find(
+      (k) =>
+        k.startsWith("perpl-orders-v1") &&
+        (!owner || k.endsWith(owner.toLowerCase())),
     );
     return key ? JSON.parse(localStorage.getItem(key)) : null;
-  });
+  }, owner);
 const summary = (j) =>
   JSON.stringify({
     e: j?.operations.map((o) => [

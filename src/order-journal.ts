@@ -62,7 +62,7 @@ export interface ManagementOperation {
     | "observed"
     | "cancelled"
     | "settled"
-    | "superseded"; // Its position ended before the collateral increase was read back.
+    | "superseded"; // Its position ended before a collateral increase or linked trigger was read back.
   filled: number;
   settlement: { hash: string; block: number; orderId: number } | null;
 }
@@ -613,7 +613,8 @@ export function readOrderJournal(
         (op.kind === "add-collateral") !==
           (typeof op.collateralBefore === "string" &&
             /^\d{1,30}$/.test(op.collateralBefore)) ||
-        (op.phase === "superseded" && op.kind !== "add-collateral")
+        (op.phase === "superseded" &&
+          ["close", "partial-close", "cancel"].includes(String(op.kind)))
       )
         throw Error("Invalid collateral increase record.");
       if (

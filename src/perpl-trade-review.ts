@@ -155,8 +155,11 @@ export function assessTradeReview(
     !metadata ||
     metadata.marketId !== observation.metadata.marketId ||
     metadata.instanceId !== observation.metadata.instanceId ||
-    metadata.configBlock !== observation.metadata.configBlock ||
-    metadata.contextVersion !== observation.metadata.contextVersion
+    // Not configBlock: Perpl's servers stamp the same context version with different
+    // config blocks, so two reads of an unchanged config can disagree on it.
+    metadata.contextVersion !== observation.metadata.contextVersion ||
+    metadata.tick !== observation.metadata.tick ||
+    metadata.lot !== observation.metadata.lot
   )
     throw Error(
       "Account and sizing market configuration differ. Refresh together.",

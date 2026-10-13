@@ -449,6 +449,24 @@ export function lifecycleCommands(
         // Observed registration is not protection execution or settlement. Missing later orders stay unresolved.
         if (matching.length !== 1 && op.phase === "observed")
           op.phase = "unknown";
+        // Perpl cancels a position-linked trigger when its position closes. With the
+        // position and the order both gone, and the request no longer able to arrive,
+        // nothing of it can execute, so it must not block entries forever.
+        if (
+          managementUnresolved(op) &&
+          state.lastRequestId >= p.rq &&
+          !state.positions.some(
+            (v) => v.id === op.positionId && v.market.marketId === p.mkt,
+          ) &&
+          !state.orders.some(
+            (o) =>
+              o.market.marketId === p.mkt &&
+              (o.id === op.observedOrderId ||
+                o.id === p.oid ||
+                o.request === p.rq),
+          )
+        )
+          op.phase = "superseded";
       } else if (op.kind === "add-collateral") {
         const position = state.positions.find(
           (v) => v.id === op.positionId && v.market.marketId === p.mkt,
