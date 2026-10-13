@@ -1,0 +1,25 @@
+# Render web service: serves dist/ plus the same-origin /perpl-public and /perpl-account relays.
+# The account relay trusts only RENDER_EXTERNAL_URL (set by Render). For a custom domain, add
+# PERPL_APP_ORIGIN with that exact origin. Either way the origin must be in Privy's allowed origins.
+services:
+  - type: web
+    name: mark-my-words
+    runtime: node
+    plan: free
+    # Fixed at creation. Closest to US East users.
+    region: virginia
+    # Exactly one process: rate limits, caches and chart samples live in memory.
+    numInstances: 1
+    autoDeployTrigger: commit
+    buildCommand: npm ci && npm run build
+    startCommand: node server/index.mjs
+    healthCheckPath: /
+    envVars:
+      # Latest Node 22 release; Vite 7 needs at least 22.12.
+      - key: NODE_VERSION
+        value: "22"
+      - key: HOST
+        value: 0.0.0.0
+      # Public Privy app ID, read by Vite at build time. Not a secret.
+      - key: VITE_PRIVY_APP_ID
+        value: cmv0afbbf01790gjvjty6xc3q
