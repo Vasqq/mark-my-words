@@ -77,8 +77,9 @@ function AuthenticatedView() {
                 uiOptions: {
                   showWalletUIs: true,
                   description,
-                  successHeader: "Transaction submitted",
-                  successDescription: "Return to verify the finalized receipt.",
+                  successHeader: "Sent to Monad",
+                  successDescription:
+                    "Press All Done. Mark My Words confirms it for you in a few seconds.",
                 },
               })
             ).hash,
@@ -150,7 +151,7 @@ export default function PerplLiveApp() {
     <PrivyProvider
       appId={appId}
       config={{
-        loginMethods: ["email", "google", "wallet"],
+        loginMethods: ["email", "google", "twitter", "wallet"],
         defaultChain: testnet.chain,
         supportedChains: [testnet.chain],
         externalWallets: { walletConnect: { enabled: false } },

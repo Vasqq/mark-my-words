@@ -827,7 +827,7 @@ export function useLiveEngine(identity: LiveIdentity): PerplEngine {
           state: "unavailable",
           reason: !identity.user
             ? "Log in for account details"
-            : "Position details unavailable until account access is enabled.",
+            : "Turn on one-tap trading to see position details.",
         };
   const positionCollateral = trading
     ? trading.positions.reduce((sum, p) => sum + p.collateral, 0n)
@@ -838,7 +838,9 @@ export function useLiveEngine(identity: LiveIdentity): PerplEngine {
     (control.session.state === "active"
       ? undefined
       : identity.user
-        ? "Account details are unavailable until account access is enabled."
+        ? account.state === "observed" && !account.value.exchangeAccount
+          ? "New here? Add funds from the balance button to get started."
+          : "Turn on one-tap trading to see your account details."
         : "Log in for account details");
   // The last finalized read stays on screen while the next one is in flight. It refreshes
   // every few seconds with or without a session, so it never needs to blank out.
@@ -1233,7 +1235,7 @@ export function useLiveEngine(identity: LiveIdentity): PerplEngine {
           reason:
             control.session.state === "active"
               ? "Reading trade history…"
-              : "Trade history is unavailable until account access is enabled.",
+              : "Turn on one-tap trading to see your trade history.",
         },
     detailsReason,
     publicReason: storageError,

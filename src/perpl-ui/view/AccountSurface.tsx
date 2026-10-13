@@ -76,8 +76,8 @@ export function AccountSurface({
             <small>
               {engine.kind === "live"
                 ? px.tapOn()
-                  ? "Read · trade · 24 hours · this browser"
-                  : "Restore 24-hour account access"
+                  ? "On · 24 hours in this browser"
+                  : "Off · turn on to trade without pop-ups"
                 : px.tapOn()
                   ? "On · trades sign instantly"
                   : "Off · each trade asks to confirm"}
@@ -271,8 +271,8 @@ export function AccountSurface({
                         !engine.positions.stale
                         ? "Signed positions and protective exits observed."
                         : "Exposure recorded · signed position details unavailable."
-                      : "No positions recorded at the finalized block."
-                    : "No Perpl account at the finalized block."
+                      : "No open positions."
+                    : "No Perpl account yet. Add funds to create one."
                 : engine.account.reason)}
           </p>
           {engine.linkedExits?.map((exit) => (
