@@ -1,0 +1,1083 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>body{margin:0}[hidden]{display:none!important}</style></head><body>
+<title>Perpl</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: day palette by default with a night switch. A centred sentence of coloured capsules sits above a rail of open positions and a 60fps chart card; every word opens an input + slider, lines drag, and each position has its own collateral, close and order controls. */
+:root{--bg:#ece8e5;--fg:#141210;--fg2:#3d3833;--sub:#857e77;--line:rgba(20,18,16,.12);--panel:#fff;--glass:rgba(255,255,255,.82);--pop:#fff;--inset:#f3f0ed;--chip:#f0ece8;
+  --lt:#a2e2c6;--ls:#fac1ac;--hfg:#141210;--gain:#1f9d63;--loss:#d4513a;--warn:#a96a08;--acc:#e0775a;--pcbg:rgba(255,255,255,.6);
+  --gold:#eccd8d;--lav:#d7ceff;--coral:#fac1ac;--mint:#a2e2c6;--tgold:#b4862a;--tlav:#6d5ad6;--tmint:#1f8a5c;--tcoral:#cf5a3a;
+  --msgbg:#fde9e3;--msgfg:#8c2c1b;
+  --f:"Inter Tight",-apple-system,system-ui,sans-serif;--mono:"JetBrains Mono",ui-monospace,Menlo,monospace;color-scheme:light}
+
+*{box-sizing:border-box}
+html,body,#root{height:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--f);font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased;font-feature-settings:"tnum" 1;overflow:hidden}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;padding:0}
+:focus-visible{outline:2px solid var(--fg);outline-offset:3px;border-radius:6px}
+.app{position:relative;height:100%;display:flex;flex-direction:column}
+.live{position:absolute;inset:0;touch-action:pan-y;user-select:none;-webkit-user-select:none}
+.live canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.lv-h{position:absolute;left:calc(var(--xr) + 8px);top:0;margin-top:-16px;height:32px;display:flex;align-items:center;gap:8px;padding:0 10px 0 14px;border-radius:16px;font-weight:700;font-size:13px;color:var(--hfg);cursor:ns-resize;touch-action:none;will-change:transform;white-space:nowrap;box-shadow:0 6px 18px -8px rgba(0,0,0,.5)}
+.lv-h.t{background:var(--lt)} .lv-h.s{background:var(--ls)}
+.lv-h em{font-style:normal;font-weight:600;opacity:.7;font-size:12px}
+.lv-h i{font-style:normal;opacity:.5;letter-spacing:-2px}
+.lv-h:focus-visible{outline:2px solid var(--fg);outline-offset:2px}
+.lv-pl{position:absolute;left:0;top:0;font-weight:700;font-size:13px;white-space:nowrap;pointer-events:none;will-change:transform}
+.lv-pl.t{color:var(--lt)} .lv-pl.s{color:var(--ls)}
+.lv-mark{position:absolute;left:calc(var(--nowx) + 12px);top:0;margin-top:-12px;height:24px;padding:0 8px;border-radius:7px;background:var(--fg);color:var(--bg);font-weight:700;font-size:12px;display:flex;align-items:center;pointer-events:none;will-change:transform}
+.top{position:relative;z-index:4;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:calc(14px + env(safe-area-inset-top,0px)) max(16px,3vw) 0}
+.brand{font-weight:800;font-size:19px;letter-spacing:-.04em}.brand b{color:var(--acc)}
+.bal{display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600}.bal small{color:var(--sub);font-weight:500}
+.sim{font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--warn);border:1px solid currentColor;padding:3px 8px;border-radius:999px;opacity:.85}
+.head{position:relative;z-index:3;padding:18px max(16px,3vw) 0;pointer-events:none}
+.head>*{pointer-events:auto}
+.sentence{font-weight:700;letter-spacing:-.04em;line-height:1.36;margin:0}
+.tk{display:inline-flex;align-items:center;gap:.16em;padding:0 .26em;border-radius:.26em;white-space:nowrap;transition:box-shadow .18s,background .2s,transform .1s;vertical-align:baseline}
+.tk:active{transform:scale(.98)}
+.tk .chev{width:.34em;height:.34em;opacity:.65;transition:transform .18s}
+.tk.on .chev{transform:rotate(180deg)}
+.tk.on,.tk:hover:not(.static){box-shadow:inset 0 0 0 1.5px currentColor}
+.tk.bad{text-decoration:underline wavy var(--loss);text-decoration-thickness:.05em;text-underline-offset:.14em}
+.tk svg.ar{width:.52em;height:.52em}
+.tk .pc{font-style:normal;font-size:.4em;font-weight:700;letter-spacing:0;padding:.2em .5em;border-radius:999px;margin-left:.15em;background:var(--pcbg)}
+.sub{margin:10px 0 0;font-size:13.5px;color:var(--sub)}
+.msg{margin-top:12px;display:inline-flex;gap:10px;align-items:center;padding:8px 12px;border-radius:12px;background:var(--msgbg);color:var(--msgfg);font-size:14px;max-width:680px;flex-wrap:wrap}
+.msg button{font-weight:700;padding:4px 10px;border-radius:999px;background:var(--fg);color:var(--bg);white-space:nowrap}
+.done{margin-top:14px;max-width:560px;padding:16px 18px;border-radius:18px;background:var(--panel);font-size:15px;color:var(--fg2);display:flex;flex-direction:column;gap:12px;align-items:flex-start}
+.bar{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:5;display:flex;align-items:center;gap:6px;padding:6px;border-radius:22px;background:var(--glass);backdrop-filter:blur(18px) saturate(140%);-webkit-backdrop-filter:blur(18px) saturate(140%);box-shadow:inset 0 0 0 1px var(--line),0 20px 50px -20px rgba(0,0,0,.45);max-width:calc(100vw - 24px)}
+.seg{display:flex;flex-direction:column;justify-content:center;padding:6px 14px;border-radius:16px;min-width:0}
+.seg small{font-size:11px;color:var(--sub);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.seg b{font-size:15px;font-weight:700;letter-spacing:-.02em;white-space:nowrap}
+.g{color:var(--gain)} .r{color:var(--loss)}
+.vsep{width:1px;height:30px;background:var(--line)}
+.step{display:flex;align-items:center;gap:3px}
+.step button{width:26px;height:26px;border-radius:50%;background:var(--chip);font-weight:700;line-height:1}
+.step button.w{width:auto;padding:0 8px;border-radius:999px;font-size:12px}
+.cta{height:48px;padding:0 22px;border-radius:16px;background:var(--fg);color:var(--bg);font-weight:800;font-size:15px;white-space:nowrap;transition:transform .1s,opacity .2s}
+.cta:active{transform:scale(.98)} .cta[aria-disabled="true"]{opacity:.3;cursor:not-allowed}
+.cta.red{background:var(--loss);color:#fff}
+.ep{position:fixed;z-index:40;background:var(--pop);color:var(--fg);border-radius:20px;padding:14px;box-shadow:inset 0 0 0 1px var(--line),0 30px 60px -20px rgba(0,0,0,.5);animation:epin .18s cubic-bezier(.23,1,.32,1);transform-origin:var(--ox,20px) top}
+@keyframes epin{from{opacity:0;transform:scale(.96)}}
+.ep.sheet{left:8px;right:8px;bottom:calc(8px + env(safe-area-inset-bottom,0px));top:auto;width:auto;border-radius:26px;padding:18px 16px}
+.ep-bg{position:fixed;inset:0;z-index:39;background:rgba(0,0,0,.35)}
+.ep-x{position:absolute;right:12px;top:10px;height:30px;padding:0 12px;border-radius:999px;background:var(--chip);font-weight:700;font-size:13px}
+.ep h4{margin:2px 4px 10px;font-size:13px;color:var(--sub);font-weight:600}
+.numin{display:flex;align-items:baseline;gap:4px;background:var(--inset);border-radius:14px;padding:10px 12px;box-shadow:inset 0 0 0 1px transparent;cursor:text}
+.numin:focus-within{box-shadow:inset 0 0 0 1.5px var(--fg)}
+.numin span{font-size:26px;font-weight:700;color:var(--sub)}
+.numin input{flex:1;min-width:0;width:100%;border:0;background:transparent;outline:none;font:inherit;font-size:26px;font-weight:700;letter-spacing:-.03em;color:var(--fg);padding:0}
+.numin em{font-style:normal;font-size:11px;color:var(--sub);white-space:nowrap;align-self:center}
+.ep-foot{display:grid;grid-template-columns:1fr auto 1fr;gap:6px;font-size:11px;color:var(--sub);margin:8px 4px 0}
+.ep-foot>span:nth-child(2){text-align:center}.ep-foot>span:last-child{text-align:right}
+.ep-foot b{display:block;color:var(--fg);font-size:12.5px}
+.ep-note{font-size:12px;color:var(--sub);margin:8px 4px 0}
+.mrow{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;width:100%;padding:11px 12px;border-radius:12px;text-align:left}
+.mrow:hover{background:var(--inset)} .mrow[aria-selected="true"]{background:var(--fg);color:var(--bg)}
+.mrow b{font-size:16px;font-weight:800}
+.sl{position:relative;height:42px;margin:10px 0 0;touch-action:pan-y;cursor:pointer;outline:none}
+.sl:focus-visible{outline:2px solid var(--fg);outline-offset:3px;border-radius:999px}
+.sl-track{position:absolute;left:0;right:0;top:9px;height:26px;border-radius:999px;background:var(--inset);overflow:hidden}
+.sl-fill{position:absolute;left:0;top:0;bottom:0;border-radius:999px;background:var(--c);min-width:26px}
+.sl-thumb{position:absolute;top:22px;width:22px;height:22px;margin-left:-11px;transform:translateY(-50%);border-radius:50%;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.35)}
+.sl-badge{position:absolute;bottom:28px;left:50%;transform:translateX(-50%);padding:2px 7px;border-radius:999px;background:var(--fg);color:var(--bg);font-size:11px;font-weight:700;white-space:nowrap}
+.sl-mark{display:none}
+.confirm{position:fixed;z-index:25;right:16px;transform:translateY(-50%);background:var(--pop);border-radius:14px;padding:10px;display:flex;gap:6px;align-items:center;box-shadow:inset 0 0 0 1px var(--line),0 20px 40px -10px rgba(0,0,0,.5);font-size:13px;flex-wrap:wrap;max-width:calc(100vw - 32px)}
+.confirm b{margin:0 4px}
+.drawer{position:fixed;z-index:30;top:12px;right:12px;bottom:12px;width:min(390px,calc(100vw - 24px));background:var(--pop);border-radius:26px;box-shadow:inset 0 0 0 1px var(--line),-30px 0 80px -20px rgba(0,0,0,.45);padding:22px;display:flex;flex-direction:column;gap:14px;overflow:auto;animation:din .28s cubic-bezier(.77,0,.175,1)}
+@keyframes din{from{transform:translateX(30px);opacity:0}}
+@media (max-width:640px){.drawer{top:auto;left:8px;right:8px;width:auto;max-height:86vh}}
+.dh{display:flex;justify-content:space-between;align-items:center}
+.drawer h2{margin:0;font-size:15px;color:var(--sub);font-weight:600;outline:none}
+.drawer .re{font-size:23px;font-weight:700;letter-spacing:-.035em;line-height:1.25;margin:0}
+.c-gold{color:var(--tgold)}.c-lav{color:var(--tlav)}.c-mint{color:var(--tmint)}.c-coral{color:var(--tcoral)}
+.rows{display:flex;flex-direction:column}
+.rows .r{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-top:1px solid var(--line);font-size:13.5px;color:inherit}
+.rows .r:first-child{border-top:0}
+.rows .k{color:var(--sub)} .rows .v{font-weight:600;text-align:right}
+.rows .v small{display:block;color:var(--sub);font-weight:500;font-size:12px}
+.rows .v.g{color:var(--gain)} .rows .v.r{color:var(--loss)}
+.ack{display:flex;gap:12px;font-size:13px;color:var(--fg2);cursor:pointer;line-height:1.45}
+.ack input{position:absolute;opacity:0;width:1px;height:1px}
+.ack .box{width:22px;height:22px;border-radius:7px;flex:none;box-shadow:inset 0 0 0 1.5px var(--line);display:grid;place-items:center;color:var(--bg)}
+.ack input:checked+.box{background:var(--fg)}
+.ack .box svg{width:12px;opacity:0}.ack input:checked+.box svg{opacity:1}
+.ack input:focus-visible+.box{outline:2px solid var(--fg);outline-offset:2px}
+.big{width:100%;height:52px;border-radius:16px;background:var(--fg);color:var(--bg);font-weight:800;font-size:15.5px}
+.big[aria-disabled="true"]{opacity:.3;cursor:not-allowed}
+.ghost{height:38px;padding:0 14px;border-radius:12px;background:var(--chip);font-weight:600;font-size:13.5px}
+.ghost.solid{background:var(--fg);color:var(--bg)}
+.fresh{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--sub);font-weight:600}
+.fresh svg{width:18px;height:18px;transform:rotate(-90deg)}.fresh circle{fill:none;stroke-width:2.5}.fresh .t{stroke:var(--line)}.fresh .p{stroke:var(--fg);transition:stroke-dashoffset .25s linear}
+.steps{display:flex;flex-direction:column;gap:6px}
+.st{display:flex;align-items:center;gap:10px;font-size:13.5px;padding:9px 12px;border-radius:12px;background:var(--inset)}
+.st i{width:16px;height:16px;border-radius:50%;flex:none;background:var(--sub);display:grid;place-items:center;font-style:normal;font-size:10px;color:var(--bg)}
+.st.done i{background:var(--gain)}.st.run i{background:transparent;border:2px solid var(--fg);border-right-color:transparent;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.odo{display:inline-flex;white-space:nowrap}.odo-c{display:inline-block;height:1.08em;overflow:hidden;line-height:1.08em;vertical-align:top}.odo-s{display:flex;flex-direction:column;transition:transform .16s cubic-bezier(.23,1,.32,1)}.odo-s span{display:block;height:1.08em}.odo-x{display:inline-block;line-height:1.08em}
+@media (max-width:640px){.bar{left:8px;right:8px;transform:none;max-width:none;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:2px;border-radius:18px}.bar .vsep,.bar .hide-m{display:none}.seg{padding:4px 8px}.seg b{font-size:14px}.cta{grid-column:1/-1;height:44px}.step button{width:24px;height:24px}.lv-h{font-size:12px;padding:0 8px 0 10px}.lv-h em{display:none}}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+.top{order:0}.head{order:1;text-align:center;padding-top:26px;padding-bottom:18px}.chartbox{order:2}
+.chartbox{position:relative;flex:1;min-height:320px;margin:0 max(16px,3vw) calc(96px + env(safe-area-inset-bottom,0px));border-radius:28px;background:#fff;box-shadow:0 1px 2px rgba(40,30,20,.06),0 24px 48px -28px rgba(40,30,20,.3);overflow:hidden}
+.sentence{font-size:clamp(26px,3vw,40px);line-height:1.55}
+.tk{padding:0 .36em;border-radius:999px;color:var(--fg);height:1.3em;vertical-align:.05em}
+.tk.gold{background:var(--gold)}.tk.lav{background:var(--lav)}.tk.coral{background:var(--coral)}.tk.mint{background:var(--mint)}
+.tk.stop{background:#fff;box-shadow:0 1px 2px rgba(40,30,20,.08),0 4px 12px -4px rgba(40,30,20,.15);color:var(--tcoral)}
+.tk.on,.tk:hover:not(.static){box-shadow:0 0 0 1.5px var(--fg)}
+.tail{color:var(--fg2)}
+.msg{margin-left:auto;margin-right:auto}
+.lv-mark{background:#141210;color:#fff}
+.done{margin:14px auto 0}
+
+:root[data-mode="night"]{--bg:#0b0c0f;--fg:#f3f1ee;--fg2:#d4d0cb;--sub:#8f8d8a;--line:rgba(255,255,255,.12);--panel:#16181e;--glass:rgba(22,24,30,.78);--pop:#16181e;--inset:rgba(255,255,255,.07);--chip:rgba(255,255,255,.08);
+  --lt:#6fdcaa;--ls:#ff9b80;--hfg:#0b0c0f;--gain:#6fdcaa;--loss:#ff7a62;--warn:#e8b45a;--acc:#6fdcaa;--pcbg:rgba(255,255,255,.12);--card:#121419;
+  --gold:#ecc97f;--lav:#b8acff;--coral:#ff9b80;--mint:#6fdcaa;--tgold:#ecc97f;--tlav:#b8acff;--tmint:#6fdcaa;--tcoral:#ff9b80;--msgbg:rgba(255,122,98,.12);--msgfg:#ffc2b5;color-scheme:dark}
+:root{--card:#fff}
+body{transition:background .35s}
+.chartbox{background:var(--card)!important;transition:background .35s}
+:root[data-mode="night"] .chartbox{box-shadow:inset 0 0 0 1px var(--line),0 24px 48px -28px rgba(0,0,0,.6)!important}
+:root[data-mode="night"] .tk.gold{background:rgba(236,201,127,.14);color:var(--gold)}
+:root[data-mode="night"] .tk.lav{background:rgba(184,172,255,.14);color:var(--lav)}
+:root[data-mode="night"] .tk.coral{background:rgba(255,155,128,.14);color:var(--coral)}
+:root[data-mode="night"] .tk.mint{background:rgba(111,220,170,.14);color:var(--mint)}
+:root[data-mode="night"] .tk.stop{background:transparent;box-shadow:inset 0 0 0 1.5px rgba(255,155,128,.45);color:var(--coral)}
+:root[data-mode="night"] .tk.on,:root[data-mode="night"] .tk:hover:not(.static){box-shadow:inset 0 0 0 1.5px currentColor}
+:root[data-mode="night"] .lv-mark{background:#f3f1ee;color:#0b0c0f}
+.topr{display:flex;align-items:center;gap:8px}
+.modebtn{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:var(--glass);box-shadow:inset 0 0 0 1px var(--line);color:var(--fg);transition:transform .3s cubic-bezier(.3,1.5,.5,1)}
+.modebtn:active{transform:rotate(25deg) scale(.92)}
+button.bal{height:38px;padding:0 6px 0 12px;border-radius:999px;background:var(--glass);box-shadow:inset 0 0 0 1px var(--line)}
+.bal .plus{width:26px;height:26px;border-radius:50%;background:var(--fg);color:var(--bg);display:grid;place-items:center;font-weight:700}
+.sentence .br{display:block;height:0}
+.sub.add{color:var(--tmint);font-weight:600}
+.rail{order:2;display:flex;align-items:stretch;gap:8px;padding:0 max(16px,3vw) 12px;overflow-x:auto;scrollbar-width:none}
+.rail::-webkit-scrollbar{display:none}
+.chartbox{order:3!important}
+.pchip{flex:none;display:grid;grid-template-columns:auto auto;gap:2px 14px;align-items:center;text-align:left;padding:9px 14px 10px;border-radius:16px;background:var(--glass);box-shadow:inset 0 0 0 1px var(--line);min-width:150px;transition:background .2s,box-shadow .2s,transform .15s}
+.pchip:active{transform:scale(.98)}
+.pchip[aria-selected="true"]{background:var(--fg);color:var(--bg);box-shadow:none}
+.pchip[aria-selected="true"] .g{color:#8fe0b8}.pchip[aria-selected="true"] .r{color:#ffab98}
+:root[data-mode="night"] .pchip[aria-selected="true"] .g{color:#137a4a}:root[data-mode="night"] .pchip[aria-selected="true"] .r{color:#c4432c}
+.pc-t{display:flex;gap:8px;align-items:baseline}.pc-t b{font-size:16px;font-weight:800;letter-spacing:-.02em}
+.side{font-size:12px;font-weight:600;opacity:.75}
+.pc-v{font-weight:700;font-size:15px;text-align:right}
+.pc-bar{grid-column:1/-1;position:relative;height:4px;border-radius:4px;background:linear-gradient(90deg,var(--ls),var(--line) 50%,var(--lt));margin-top:6px}
+.pc-bar i{position:absolute;top:-3px;width:10px;height:10px;margin-left:-5px;border-radius:50%;background:currentColor;box-shadow:0 0 0 2px var(--glass);transition:left .5s}
+.pc-warn{grid-column:1/-1;font-size:11px;color:var(--warn);font-weight:600}
+.pchip.new{display:flex;flex-direction:column;justify-content:center;gap:2px;background:transparent;box-shadow:inset 0 0 0 1.5px dashed var(--line);border:1.5px dashed var(--line);box-shadow:none}
+.pchip.new b{font-size:14px}.pchip.new span{font-size:11.5px;color:var(--sub)}
+.pchip.new[aria-selected="true"]{border-color:transparent;background:var(--fg);color:var(--bg)}
+.pchip.new[aria-selected="true"] span{color:inherit;opacity:.7}
+.rail-sum{margin-left:auto;align-self:center;font-size:13px;color:var(--sub);white-space:nowrap;padding-left:12px}
+.rail-sum b{font-weight:700}
+.seg.act{text-align:left;border-radius:16px;transition:background .2s}
+.seg.act:hover{background:var(--chip)}
+.seg .mini{display:inline-grid;place-items:center;width:18px;height:18px;border-radius:50%;background:var(--fg);color:var(--bg);font-size:12px;vertical-align:1px;margin-left:2px}
+.tip{position:relative;display:inline-flex;align-items:center;gap:3px;cursor:help;outline:none}
+.tip-i{display:inline-grid;place-items:center;width:12px;height:12px;border-radius:50%;box-shadow:inset 0 0 0 1px currentColor;font-size:8.5px;font-weight:800;opacity:.6}
+.tip-b{position:absolute;bottom:calc(100% + 10px);left:-8px;width:240px;padding:10px 12px;border-radius:12px;background:var(--fg);color:var(--bg);font-size:12.5px;font-weight:500;line-height:1.45;white-space:normal;opacity:0;transform:translateY(4px);pointer-events:none;transition:opacity .15s,transform .15s;z-index:50;box-shadow:0 10px 30px -10px rgba(0,0,0,.4)}
+.tip:hover .tip-b,.tip:focus .tip-b{opacity:1;transform:none}
+.simdock{position:absolute;z-index:4;top:12px;left:12px;display:flex;gap:4px;align-items:center;padding:4px 4px 4px 10px;border-radius:999px;background:var(--glass);box-shadow:inset 0 0 0 1px var(--line);font-size:11.5px;color:var(--warn);font-weight:700;letter-spacing:.02em}
+.simdock button{height:26px;padding:0 9px;border-radius:999px;background:var(--chip);color:var(--fg);font-size:12px;font-weight:600;letter-spacing:0}
+.sh-bg{position:fixed;inset:0;z-index:60;background:rgba(10,10,12,.35);display:grid;place-items:center;padding:16px;animation:fadein .18s}
+@keyframes fadein{from{opacity:0}}
+.sh{width:min(400px,100%);max-height:calc(100vh - 32px);overflow:auto;background:var(--pop);color:var(--fg);border-radius:26px;padding:20px;display:flex;flex-direction:column;gap:14px;box-shadow:inset 0 0 0 1px var(--line),0 30px 80px -20px rgba(0,0,0,.5);animation:epin .2s cubic-bezier(.23,1,.32,1)}
+@media (max-width:640px){.sh-bg{place-items:end stretch;padding:8px}.sh{width:100%}}
+.sh-h{display:flex;justify-content:space-between;align-items:center}
+.sh h2{margin:0;font-size:20px;font-weight:800;letter-spacing:-.03em;outline:none}
+.segd{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:4px;padding:4px;border-radius:999px;background:var(--inset)}
+.segd button{height:36px;border-radius:999px;font-weight:700;font-size:13.5px;color:var(--sub);transition:background .2s,color .2s}
+.segd button[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
+.kv{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.kv div{padding:10px 12px;border-radius:14px;background:var(--inset)}
+.kv small{display:block;font-size:11.5px;color:var(--sub)}.kv b{font-size:17px;font-weight:700;letter-spacing:-.02em}
+.simtag{align-self:flex-start;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--warn)}
+.hist{display:flex;flex-direction:column;max-height:260px;overflow:auto}
+.hrow{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line);font-size:13.5px}
+.hrow:first-child{border-top:0}.hrow small{display:block;color:var(--sub);font-size:12px}
+.big.red{background:var(--loss);color:#fff}
+.mrow em{font-style:normal;color:var(--warn);font-weight:600}
+.toasts{position:fixed;right:16px;top:calc(64px + env(safe-area-inset-top,0px));z-index:70;display:flex;flex-direction:column;gap:8px;align-items:flex-end;pointer-events:none}
+.toast{max-width:340px;padding:12px 14px;border-radius:16px;background:var(--fg);color:var(--bg);font-size:13.5px;box-shadow:0 14px 40px -12px rgba(0,0,0,.45);animation:tin .35s cubic-bezier(.23,1,.32,1)}
+.toast b{display:block;font-weight:700}
+.toast.g{box-shadow:inset 4px 0 0 #3aa577,0 14px 40px -12px rgba(0,0,0,.45)}.toast.r{box-shadow:inset 4px 0 0 #d4513a,0 14px 40px -12px rgba(0,0,0,.45)}
+@keyframes tin{from{opacity:0;transform:translateY(10px) scale(.97)}}
+.seg small:last-child:not(:first-child){font-size:11px}
+@media (max-width:640px){.toasts{left:12px;right:12px;align-items:stretch}.rail-sum{display:none}.simdock{top:8px;left:8px;font-size:0;gap:3px;padding:3px}.simdock span{display:none}}
+
+/* ---- Privy (simulated) ---- */
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.92em;letter-spacing:0}
+button.login{height:38px;padding:0 18px;border-radius:999px;background:var(--fg);color:var(--bg);font-weight:700;font-size:14px;transition:transform .2s}
+button.login:active{transform:scale(.96)}
+.bal .av,.who .av{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,var(--lav),var(--coral));color:#141210;display:grid;place-items:center;font-weight:800;font-size:12px}
+.bal .zap{color:var(--tgold);display:grid;place-items:center}
+.pv-bg{position:fixed;inset:0;z-index:75;background:rgba(10,10,12,.42);display:grid;place-items:center;padding:16px;animation:fadein .18s;backdrop-filter:blur(3px)}
+.pv{width:min(380px,100%);max-height:calc(100vh - 32px);overflow:auto;background:var(--pop);color:var(--fg);border-radius:24px;padding:14px 22px 14px;display:flex;flex-direction:column;gap:10px;box-shadow:inset 0 0 0 1px var(--line),0 30px 80px -20px rgba(0,0,0,.55);animation:epin .22s cubic-bezier(.23,1,.32,1)}
+@media (max-width:640px){.pv-bg{place-items:end stretch;padding:8px}.pv{width:100%;border-radius:24px}}
+.pv-top{display:flex;justify-content:space-between;height:28px}
+.pv-ic{width:28px;height:28px;border-radius:50%;font-size:20px;line-height:1;color:var(--sub);display:grid;place-items:center}.pv-ic:hover{background:var(--inset);color:var(--fg)}
+.pv-head{display:flex;flex-direction:column;gap:6px;margin-bottom:6px}
+.pv-head h3{margin:0;font-size:19px;font-weight:800;letter-spacing:-.02em}
+.pv-head p{margin:0;color:var(--sub);font-size:14px;line-height:1.45}.pv-head p b{color:var(--fg)}
+.pv-center{align-items:center;text-align:center;padding:14px 0 8px}
+.pv-logo{font-size:30px;font-weight:800;letter-spacing:-.05em;align-self:center;margin:2px 0 6px}.pv-logo b{color:var(--acc)}
+.pv-head:has(.pv-logo){text-align:center;align-items:center}
+.pv-app{font-weight:800;letter-spacing:-.03em;font-size:15px}.pv-app b{color:var(--acc)}.pv-app small{font-weight:500;color:var(--sub);letter-spacing:0;margin-left:4px}
+.pv-badge{width:52px;height:52px;border-radius:50%;background:var(--inset);display:grid;place-items:center;align-self:center;color:var(--fg)}
+.pv-badge.ok{background:var(--gain);color:#fff;animation:pop .4s cubic-bezier(.3,1.6,.5,1)}
+@keyframes pop{from{transform:scale(.4)}to{transform:none}}
+.pv-email{display:flex;align-items:center;gap:8px;height:52px;padding:0 6px 0 14px;border-radius:14px;box-shadow:inset 0 0 0 1px var(--line);color:var(--sub)}
+.pv-email:focus-within{box-shadow:inset 0 0 0 2px var(--fg)}
+.pv-email input{flex:1;min-width:0;border:0;background:none;font:inherit;font-size:15px;color:var(--fg);outline:none}
+.pv-email button{height:38px;padding:0 14px;border-radius:10px;font-weight:700;font-size:13.5px;color:var(--fg)}.pv-email button:disabled{color:var(--sub);opacity:.6}
+.pv-email button:not(:disabled){background:var(--fg);color:var(--bg)}
+.pv-opt{display:flex;align-items:center;gap:12px;height:52px;padding:0 14px;border-radius:14px;box-shadow:inset 0 0 0 1px var(--line);font-weight:600;font-size:15px;text-align:left;transition:background .15s}
+.pv-opt:hover{background:var(--inset)}.pv-opt>span:nth-child(2){flex:1}.pv-opt em{font-style:normal;color:var(--sub);font-size:20px}
+.pv-x{width:18px;text-align:center;font-weight:700}.pv-wi{display:grid;place-items:center;width:18px}
+.pv-wl{width:28px;height:28px;border-radius:8px;color:#fff;display:grid;place-items:center;font-weight:800;font-size:13px}.pv-wl.big{width:56px;height:56px;border-radius:16px;font-size:24px}
+.pv-tag{font-style:normal!important;font-size:11px!important;font-weight:700;color:var(--gain)!important;background:color-mix(in srgb,var(--gain) 12%,transparent);padding:3px 8px;border-radius:99px}
+.pv-fine{margin:4px 0 0;color:var(--sub);font-size:12.5px;text-align:center;line-height:1.4}
+.pv-foot{text-align:center;font-size:11.5px;color:var(--sub);padding-top:8px;border-top:1px solid var(--line);margin-top:6px}.pv-foot b{color:var(--fg);letter-spacing:-.02em}
+.pv-otp{position:relative;display:grid;grid-template-columns:repeat(6,1fr);gap:8px;cursor:text}
+.pv-otp input{position:absolute;inset:0;opacity:0;font-size:16px}
+.pv-otp span{height:52px;border-radius:12px;box-shadow:inset 0 0 0 1px var(--line);display:grid;place-items:center;font-size:22px;font-weight:700}
+.pv-otp:focus-within span.cur{box-shadow:inset 0 0 0 2px var(--fg)}
+.pv-link{align-self:center;color:var(--tlav);font-weight:600;font-size:13px;padding:6px}
+.pv-pri{height:50px;border-radius:14px;background:var(--fg);color:var(--bg);font-weight:800;font-size:15px;display:flex;align-items:center;justify-content:center;gap:8px}.pv-pri:disabled{opacity:.45}
+.pv-sec{height:44px;border-radius:14px;font-weight:600;color:var(--sub)}
+.pv-msg{margin:0;padding:12px;border-radius:12px;background:var(--inset);font:12px/1.55 ui-monospace,Menlo,monospace;white-space:pre-wrap;word-break:break-all;color:var(--fg2)}
+.pv-spin{width:28px;height:28px;border-radius:50%;border:3px solid var(--line);border-top-color:var(--fg);animation:spin .8s linear infinite;display:inline-block}
+.pv-pri .pv-spin{width:16px;height:16px;border-width:2px;border-color:color-mix(in srgb,var(--bg) 30%,transparent);border-top-color:var(--bg)}
+@keyframes spin{to{transform:rotate(360deg)}}
+.pv-rows{display:flex;flex-direction:column;border-radius:14px;background:var(--inset);padding:4px 14px}
+.pv-rows div{display:flex;justify-content:space-between;gap:12px;padding:9px 0;font-size:13.5px}.pv-rows div+div{border-top:1px solid var(--line)}
+.pv-rows span{color:var(--sub)}.pv-rows b{font-weight:600;text-align:right}.pv-rows b small{display:block;color:var(--sub);font-weight:500;font-size:11.5px}.pv-rows .g{color:var(--gain)}
+.pv-amt{display:flex;align-items:baseline;justify-content:center;gap:4px;font-weight:800;padding:6px 0}
+.pv-amt span{font-size:30px;color:var(--sub)}.pv-amt input{width:5.5ch;border:0;background:none;font:inherit;font-size:44px;letter-spacing:-.03em;color:var(--fg);text-align:center;outline:none}.pv-amt small{font-size:13px;color:var(--sub);font-weight:600}
+.pv-chips{display:flex;justify-content:center;gap:6px}.pv-chips button{height:32px;padding:0 14px;border-radius:99px;background:var(--inset);font-weight:700;font-size:13px}.pv-chips button[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
+.pv-ways{display:flex;flex-direction:column;gap:6px;margin:6px 0}
+.pv-ways button{display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius:14px;box-shadow:inset 0 0 0 1px var(--line);text-align:left}
+.pv-ways button[aria-checked="true"]{box-shadow:inset 0 0 0 2px var(--fg)}
+.pv-ways i{width:18px;height:18px;border-radius:50%;box-shadow:inset 0 0 0 2px var(--line);flex:none}.pv-ways button[aria-checked="true"] i{box-shadow:inset 0 0 0 5px var(--fg)}
+.pv-ways b{display:block;font-size:14.5px}.pv-ways small{color:var(--sub);font-size:12.5px}
+.pv-card{display:flex;align-items:center;gap:12px;padding:16px;border-radius:14px;background:var(--inset);font-weight:600}.pv-card small{margin-left:auto;color:var(--sub);font-weight:500;font-size:12px}
+.pv-visa{font-weight:900;font-style:italic;color:#1a1f71;background:#fff;padding:2px 8px;border-radius:6px;box-shadow:inset 0 0 0 1px var(--line)}
+.pv-addr{display:flex;gap:14px;align-items:center;padding:14px;border-radius:14px;background:var(--inset)}
+.pv-addr>span:last-child{display:flex;flex-direction:column;gap:2px}.pv-addr small{color:var(--sub);font-size:12px}.pv-addr .pv-link{align-self:flex-start;padding:2px 0}
+.pv-qr{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;width:84px;height:84px;padding:6px;background:#fff;border-radius:10px;flex:none}.pv-qr i{background:#141210;border-radius:1px}
+.pv-key{padding:14px;border-radius:12px;background:var(--inset);word-break:break-all;filter:blur(6px);user-select:none;transition:filter .3s}.pv-key.on{filter:none;user-select:all}
+.who{display:flex;gap:12px;align-items:center}.who .av{width:44px;height:44px;font-size:18px;flex:none}
+.who>span:last-child{display:flex;flex-direction:column;align-items:flex-start;min-width:0}.who b{font-size:15px}.who small{color:var(--sub);font-size:12px}
+.who .addr{font-size:12.5px;color:var(--sub);padding:0}.who .addr .mono{color:var(--fg)}
+.taprow{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;background:var(--inset);text-align:left}
+.taprow .bolt{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;background:var(--chip);color:var(--sub)}.taprow.on .bolt{background:var(--gold);color:#141210}
+.taprow>span:nth-child(2){flex:1}.taprow b{display:block;font-size:14px}.taprow small{color:var(--sub);font-size:12.5px}.taprow em{font-style:normal;font-weight:700;font-size:13px}
+.acts{display:flex;gap:6px;flex-wrap:wrap}.acts button{flex:1}
+
+/* ---- stable layout: header and rail never change height, so the chart never resizes ---- */
+.head{flex:none;box-sizing:border-box;height:calc(2 * 1.55 * clamp(26px,3vw,40px) + 26px + 62px);padding-bottom:0!important;display:flex;flex-direction:column;align-items:center}
+.head .sentence{min-height:calc(2 * 1.55em)}
+.head .sub,.head .msg{flex:none}
+.head .msg{flex-wrap:nowrap;max-width:min(920px,100%);white-space:nowrap}.head .msg span{overflow:hidden;text-overflow:ellipsis}.head .msg button{flex:none}
+.rail{flex:none;box-sizing:border-box;height:72px;align-items:stretch;padding-bottom:12px!important}
+.pchip.ghost{display:flex;align-self:stretch;align-items:center;min-width:0;background:transparent;box-shadow:none;border:1.5px dashed var(--line);color:var(--sub);font-size:13px;font-weight:500;padding:0 16px;cursor:default}
+@media (max-width:640px){.head .sentence{font-size:23px;line-height:1.5;min-height:calc(4 * 1.5em)}.head{height:calc(4 * 1.5 * 23px + 26px + 100px)}.head .sub{font-size:12.5px}.head .msg{font-size:12.5px;padding:6px 10px;margin-top:8px;white-space:normal;flex-wrap:wrap;gap:6px}.pchip.ghost{font-size:12px}}
+
+.rail-empty{align-self:stretch;display:flex;align-items:center;padding:0 18px;border:1.5px dashed var(--line);border-radius:16px;font-size:13px;color:var(--sub);white-space:nowrap}
+.sub .back{font:inherit;color:var(--fg);font-weight:600;text-decoration:underline;text-underline-offset:3px;text-decoration-color:var(--line);margin-left:6px;pointer-events:auto}
+.sub .back:hover{text-decoration-color:currentColor}
+@media (min-width:1360px){.head{height:calc(62px + 26px + 62px)}.head .sentence{width:100%;white-space:nowrap;line-height:62px;min-height:62px;font-size:40px}}
+
+/* toasts live bottom-left, over the chart's history side, never over the sentence */
+.toasts{top:auto!important;right:auto!important;left:calc(max(16px,3vw) + 14px)!important;bottom:calc(112px + env(safe-area-inset-bottom,0px))!important;align-items:flex-start!important;flex-direction:column-reverse}
+@media (max-width:640px){.toasts{left:12px!important;right:12px!important;bottom:calc(150px + env(safe-area-inset-bottom,0px))!important;align-items:stretch!important}}
+.rail-empty.login-hint{font:inherit;font-size:13px;cursor:pointer;transition:border-color .2s,color .2s}.rail-empty.login-hint:hover{border-color:var(--fg);color:var(--fg)}
+/* sentence tokens: rounded-rect like the bar and rail, not pills */
+.tk{border-radius:min(16px,.4em)!important}.tk .pc{border-radius:.5em!important;line-height:1.3}
+/* chart tools: range + simulation, one quiet row in the chart's top-left */
+.ctools{position:absolute;z-index:4;top:12px;left:12px;right:200px;display:flex;gap:8px;align-items:center;pointer-events:none}
+.ctools>*{pointer-events:auto}
+.ctools .simdock{position:static}
+.tfs{display:flex;gap:2px;padding:3px;border-radius:12px;background:var(--glass);box-shadow:inset 0 0 0 1px var(--line)}
+.tfs button{height:26px;padding:0 10px;border-radius:9px;font-size:12px;font-weight:700;color:var(--sub);display:flex;align-items:center;gap:6px;transition:background .2s,color .2s}
+.tfs button[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
+.tfs .dot{width:6px;height:6px;border-radius:50%;background:var(--gain);animation:livedot 2s infinite}
+@keyframes livedot{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--gain) 60%,transparent)}70%,100%{box-shadow:0 0 0 6px transparent}}
+.tfchg{font-size:12.5px;font-weight:700;white-space:nowrap}.tfchg.g{color:var(--gain)}.tfchg.r{color:var(--loss)}.tfchg small{color:var(--sub);font-weight:500}
+.simdock{border-radius:12px!important}.simdock button{border-radius:9px!important}
+@media (max-width:640px){.ctools{top:8px;left:8px;right:8px;flex-wrap:wrap;gap:6px}.tfchg{display:none}}
+/* review details fold, close-sheet headline, three-tile account */
+details.more{border-radius:14px;background:var(--inset);padding:2px 14px}
+details.more summary{cursor:pointer;font-size:13.5px;font-weight:600;color:var(--sub);padding:10px 0;list-style:none}
+details.more summary::-webkit-details-marker{display:none}
+details.more summary::after{content:' +';}
+details.more[open] summary::after{content:' −';}
+.kv .wide{grid-column:1/-1}
+.kv.one{grid-template-columns:1fr}.kv.one b{font-size:26px}
+.rows .v.r,.rows .v.g{display:block;border-top:0;padding:0}
+/* result card in the positions row */
+.pchip.result{display:flex;align-items:center;gap:16px;min-width:0;padding:8px 8px 8px 16px;cursor:default;background:var(--panel);box-shadow:inset 0 0 0 1px var(--line);animation:epin .3s cubic-bezier(.23,1,.32,1)}
+.pchip.result.win{box-shadow:inset 3px 0 0 var(--gain),inset 0 0 0 1px var(--line)}.pchip.result.loss{box-shadow:inset 3px 0 0 var(--loss),inset 0 0 0 1px var(--line)}
+.rs-t{display:flex;flex-direction:column;min-width:0}.rs-t b{font-size:14px;font-weight:800;letter-spacing:-.01em}.rs-t span{font-size:12px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rs-v{font-size:17px;font-weight:800;letter-spacing:-.02em;white-space:nowrap}
+.rs-a{display:flex;gap:4px}.rs-a button{height:30px;padding:0 10px;border-radius:10px;background:var(--chip);font-size:12.5px;font-weight:700}.rs-a button[aria-label]{width:30px;padding:0;font-size:16px}
+/* one-tap banner: small, above the bottom bar */
+.tapban{position:fixed;z-index:20;left:50%;transform:translateX(-50%);bottom:calc(96px + env(safe-area-inset-bottom,0px));display:flex;align-items:center;gap:12px;padding:8px 8px 8px 12px;border-radius:16px;background:var(--pop);box-shadow:inset 0 0 0 1px var(--line),0 18px 40px -16px rgba(0,0,0,.35);font-size:13.5px;font-weight:600;animation:tin .35s cubic-bezier(.23,1,.32,1);max-width:calc(100vw - 24px)}
+.tapban .bolt{width:28px;height:28px;border-radius:9px;display:grid;place-items:center;background:var(--gold);color:#141210;flex:none}
+.tapban small{display:block;font-weight:500;color:var(--sub);font-size:12px}
+.tapban .ghost{height:32px;flex:none}.tapban .x{width:30px;height:30px;border-radius:9px;color:var(--sub);font-size:17px;flex:none}
+/* demo controls */
+.simdock{padding:3px!important;gap:3px!important}
+.simdock .dtog{background:transparent!important;color:var(--warn)!important;font-weight:700}
+.simdock .dbtns{display:flex;gap:3px}
+.simdock:not(.open) .dbtns{display:none!important}
+.simdock.open .dbtns{display:flex!important;flex-wrap:wrap}
+@media (max-width:640px){.simdock{font-size:12px!important}.simdock .dtog span{display:none}.simdock.open{flex-wrap:wrap}.tapban{left:12px;right:12px;transform:none;bottom:calc(140px + env(safe-area-inset-bottom,0px))}.tapban>span:nth-child(2){flex:1;min-width:0}.pchip.result{gap:10px;padding-left:12px}.rs-t span{max-width:130px}}
+</style>
+
+<div id="root"></div>
+<script src="vendor/react.production.min.js"></script>
+<script src="vendor/react-dom.production.min.js"></script>
+<script src="vendor/htm.umd.js"></script>
+<script>
+(function(){
+const {useState,useEffect,useRef,useMemo,useCallback,useLayoutEffect}=React;
+const html=htm.bind(React.createElement);
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const clamp=(x,a,b)=>Math.min(b,Math.max(a,x));
+/* ================= Fixtures (simulated) ================= */
+function rng(seed){let a=seed>>>0;return ()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+const MK={
+  ETH:{id:'ETH',name:'Ethereum',tick:.01,lot:.001,dp:2,qdp:3,mark0:2478.40,chg:2.41,mmr:.025,ceiling:20,taker:.0004,fund:.000012,depthLot:820,stepBp:1.6,seed:11},
+  BTC:{id:'BTC',name:'Bitcoin',tick:.1,lot:.0001,dp:1,qdp:4,mark0:61842.5,chg:-0.63,mmr:.02,ceiling:25,taker:.0004,fund:-.000008,depthLot:310,stepBp:1.1,seed:29},
+};
+const BOUND=.005, FUND_BLOCKS=8571, FUND_MIN=43, QUOTE_LIFE=10;
+const roundTick=(p,m)=>Math.round(p/m.tick)*m.tick;
+const fixP=(p,m)=>+p.toFixed(m.dp);
+function spark(m){const r=rng(m.seed);const n=24;const start=m.mark0/(1+m.chg/100);const out=[];let v=start;for(let i=0;i<n;i++){const t=i/(n-1);const target=start+(m.mark0-start)*t;v=target+(r()-.5)*m.mark0*.006;out.push(i===n-1?m.mark0:v);}return out;}
+const SPARK={ETH:spark(MK.ETH),BTC:spark(MK.BTC)};
+// Order book: 40 levels per side, sizes in lots
+function book(m,mark){const asks=[],bids=[];for(let i=0;i<40;i++){const off=mark*(m.stepBp/1e4)*(i+.6);const lots=Math.round(m.depthLot*(.5+i*.22));asks.push([fixP(roundTick(mark+off,m),m),lots]);bids.push([fixP(roundTick(mark-off,m),m),lots]);}return {asks,bids};}
+
+/* ================= Financial core ================= */
+// Smallest lot count n with d*q*(T-E(q)) >= G. Within one level gross is linear in q, so solve per level (non-monotone safe: first level that satisfies wins).
+function solveSize(m,side,mark,T,G){
+  const d=side==='long'?1:-1;const lv=side==='long'?book(m,mark).asks:book(m,mark).bids;
+  let n0=0,C0=0;
+  for(const [p,lots] of lv){
+    const a=d>0?(T-p):(p-T); const q0=n0*m.lot; const b=d>0?(-C0+p*q0):(C0-p*q0);
+    if(a>0){let need=(G-b)/a;let n=Math.max(n0+1,Math.ceil(need/m.lot-1e-9));if(n<=n0+lots){const q=n*m.lot;const E=(C0+p*(n-n0)*m.lot)/q;return {n,q,E,worst:p};}}
+    C0+=p*lots*m.lot;n0+=lots;
+  }
+  return null;
+}
+function vwapFor(m,side,mark,n){const lv=side==='long'?book(m,mark).asks:book(m,mark).bids;let left=n,C=0,worst=0;for(const [p,lots] of lv){const t=Math.min(left,lots);C+=p*t*m.lot;left-=t;worst=p;if(!left)break;}if(left>0)return null;return {E:C/(n*m.lot),worst};}
+function maxLotsForBudget(m,side,mark,L,budget){let lo=0,hi=0;const lv=side==='long'?book(m,mark).asks:book(m,mark).bids;for(const l of lv)hi+=l[1];
+  const req=n=>{const v=vwapFor(m,side,mark,n);if(!v)return Infinity;const q=n*m.lot;return v.E*q/L+v.E*q*m.taker+topup(side,mark,v.E,q);};
+  if(req(1)>budget)return 0;while(hi-lo>1){const mid=(lo+hi)>>1;if(req(mid)<=budget)lo=mid;else hi=mid;}return lo;}
+function topup(side,M,E,q){const d=side==='long'?1:-1;return Math.max(0,-d*(M-E)*q);}
+function liqPrice(side,E,q,C,mmr,F=0){const d=side==='long'?1:-1;const MMR=E*q*mmr;return Math.max(0,E+d*(MMR-C-F)/q);}
+const stopBuffer=(m,mark)=>Math.max(m.tick,mark*.01);
+
+function compute(dr,marks,free){
+  const m=MK[dr.market];const M=marks[dr.market];const d=dr.side==='long'?1:-1;const L=dr.lev;
+  const out={m,M,d,errors:{},ok:false};
+  const ceil=Math.min(5,m.ceiling);out.ceil=ceil;
+  if(!(L>=1&&L<=ceil+1e-9)) out.errors.lev=`Leverage must be between 1.00x and ${ceil.toFixed(2)}x.`;
+  // target side validity vs mark (entry checked after solve)
+  if(!(dr.target>0)) out.errors.target='Enter a positive price.';
+  else if(d*(dr.target-M)<=0) out.errors.target=d>0?`A long target must be above the mark (${fmtP(M,m)}).`:`A short target must be below the mark (${fmtP(M,m)}).`;
+  if(!(dr.goal>=.01)) out.errors.goal='Enter a goal of at least $0.01.';
+  if(out.errors.target||out.errors.goal) return out;
+  const s=solveSize(m,dr.side,M,dr.target,dr.goal);
+  if(!s){out.errors.goal='This goal exceeds available depth at this target.';return out;}
+  const {q,E,worst}=s;out.q=q;out.n=s.n;out.E=E;
+  const bound=M*(1+d*BOUND);out.bound=fixP(roundTick(bound,m),m);
+  if(d*(worst-bound)>0){out.errors.goal='Filling this size would move price past the 0.5% entry bound. Lower the goal or move the target further.';}
+  if(d*(dr.target-E)<=0){out.errors.target=`Target must be beyond the estimated entry (${fmtP(E,m)}).`;}
+  out.notional=E*q;out.margin=out.notional/L;out.entryFee=out.notional*m.taker;out.top=topup(dr.side,M,E,q);
+  out.required=out.margin+out.entryFee+out.top;out.C=out.margin+out.top;
+  out.gross=d*q*(dr.target-E);out.exitFeeT=dr.target*q*m.taker;out.netT=out.gross-out.entryFee-out.exitFeeT;
+  out.liq=liqPrice(dr.side,E,q,out.C,m.mmr);out.buf=stopBuffer(m,M);
+  // stop admission interval
+  if(d>0){out.sLo=fixP(roundTick(Math.max(0,out.liq+out.buf)+m.tick,m),m);out.sHi=fixP(roundTick(Math.min(E,M)-m.tick,m),m);}
+  else{out.sLo=fixP(roundTick(Math.max(E,M)+m.tick,m),m);out.sHi=fixP(roundTick(out.liq-out.buf-m.tick,m),m);}
+  if(out.sLo>out.sHi) out.errors.stop='No safe stop at this leverage. Add budget or lower leverage.';
+  else if(!(dr.stop>=out.sLo&&dr.stop<=out.sHi)) out.errors.stop=d>0?`Stop must be between ${fmtP(out.sLo,m)} and ${fmtP(out.sHi,m)} (below entry, above liquidation + buffer).`:`Stop must be between ${fmtP(out.sLo,m)} and ${fmtP(out.sHi,m)} (above entry, below liquidation − buffer).`;
+  out.grossS=d*q*(dr.stop-E);out.netS=out.grossS-out.entryFee-dr.stop*q*m.taker;
+  if(out.required>dr.budget+1e-9) out.errors.budget=`Needs ${fmtUsd(out.required)} but your budget is ${fmtUsd(dr.budget)}. Raise the budget or lower the goal.`;
+  out.shortfall=Math.max(0,out.required-free);
+  // feasible goal range at this target/budget/leverage
+  const nMax=maxLotsForBudget(m,dr.side,M,L,dr.budget);
+  if(nMax>0){const v=vwapFor(m,dr.side,M,nMax);out.gMax=Math.max(0,d*nMax*m.lot*(dr.target-v.E));}else out.gMax=0;
+  out.reqGoalSize=dr.goal;out.overshoot=out.gross-dr.goal;
+  out.ok=!Object.keys(out.errors).length;
+  return out;
+}
+
+/* ================= Formatting ================= */
+function fmtUsd(x,dp=2,sign=false){if(x==null||!isFinite(x))return '—';const a=Math.abs(x);let s;if(a>0&&a<.01&&dp>=2)s='<$0.01';else s='$'+a.toLocaleString('en-US',{minimumFractionDigits:dp,maximumFractionDigits:dp});if(x<0&&s!=='<$0.01')return '−'+s;if(sign&&x>0)return '+'+s;return s;}
+const fmtShort=x=>Number.isInteger(Math.round(x*100)/100)&&Math.abs(x-Math.round(x))<1e-9?'$'+Math.round(x).toLocaleString('en-US'):fmtUsd(x);
+function fmtP(p,m){if(p==null||!isFinite(p))return '—';return '$'+(+p).toLocaleString('en-US',{minimumFractionDigits:m.dp,maximumFractionDigits:m.dp});}
+const fmtQ=(q,m)=>q==null||!isFinite(q)?'—':q.toFixed(m.qdp);
+const fmtPct=x=>(x>0?'+':x<0?'−':'')+Math.abs(x).toFixed(1)+'%';
+const ausd6=x=>x.toFixed(6)+' AUSD';
+function parseNum(s){const t=String(s).replace(/[$,\s]/g,'');if(t===''||!/^\d*\.?\d*$/.test(t)||t==='.')return null;const v=parseFloat(t);return isFinite(v)?v:null;}
+const clock=t=>new Date(t).toLocaleTimeString('en-US',{hour12:false});
+
+/* ================= Small components ================= */
+const DIG='0123456789'.split('');
+function Odo({text}){const ch=[...text];return html`<span className="odo" aria-label=${text} role="text">${ch.map((c,i)=>{const k=ch.length-i;return /\d/.test(c)?html`<span className="odo-c" key=${'d'+k} aria-hidden="true"><span className="odo-s" style=${{transform:`translateY(${-(+c)*1.08}em)`}}>${DIG.map(d=>html`<span key=${d}>${d}</span>`)}</span></span>`:html`<span className="odo-x" key=${'x'+k+c} aria-hidden="true">${c}</span>`;})}</span>`;}
+const Chev=()=>html`<svg className="chev" viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const ErrI=()=>html`<svg viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="6.2" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M7 3.8v3.7M7 9.6v.1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`;
+function Err({children}){return children?html`<div className="err" role="status"><${ErrI}/><span>${children}</span></div>`:null;}
+function Spark({data,up,sel}){const mn=Math.min(...data),mx=Math.max(...data);const pts=data.map((v,i)=>`${(i/(data.length-1)*56).toFixed(1)},${(20-(v-mn)/(mx-mn||1)*18).toFixed(1)}`).join(' ');return html`<svg className="spk" viewBox="0 0 56 22" aria-hidden="true"><polyline points=${pts} fill="none" stroke=${sel?(up?'#7fe0b2':'#ffab98'):(up?'#1f9d63':'#d4513a')} stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/></svg>`;}
+
+function Slider({value,min,max,step,onChange,onCommit,color,badge,label,valuetext,disabled,marks=[]}){
+  const ref=useRef();const st=useRef({start:null,drag:false});const [drag,setDrag]=useState(false);
+  const span=max-min||1;const pct=clamp((value-min)/span,0,1)*100;
+  const fromX=x=>{const r=ref.current.getBoundingClientRect();let v=min+clamp((x-r.left)/r.width,0,1)*span;v=Math.round((v-min)/step)*step+min;return clamp(+v.toFixed(6),min,max);};
+  const down=e=>{if(disabled||!e.isPrimary)return;e.preventDefault();ref.current.focus({preventScroll:true});st.current={start:value,drag:true};setDrag(true);ref.current.setPointerCapture&&ref.current.setPointerCapture(e.pointerId);onChange(fromX(e.clientX));};
+  const move=e=>{if(st.current.drag&&e.isPrimary)onChange(fromX(e.clientX));};
+  const up=e=>{if(!st.current.drag)return;st.current.drag=false;setDrag(false);onCommit&&onCommit();};
+  const cancel=()=>{if(!st.current.drag)return;st.current.drag=false;setDrag(false);onChange(st.current.start);};
+  const key=e=>{const k={ArrowRight:step,ArrowUp:step,ArrowLeft:-step,ArrowDown:-step,PageUp:step*10,PageDown:-step*10}[e.key];
+    if(k!=null){e.preventDefault();onChange(clamp(+(value+k).toFixed(6),min,max));}else if(e.key==='Home'){e.preventDefault();onChange(min);}else if(e.key==='End'){e.preventDefault();onChange(max);}};
+  return html`<div className=${'sl'+(drag?' drag':'')} ref=${ref} role="slider" tabIndex=${disabled?-1:0} aria-label=${label} aria-valuemin=${min} aria-valuemax=${max} aria-valuenow=${value} aria-valuetext=${valuetext} aria-disabled=${!!disabled}
+    style=${{'--c':color}} onPointerDown=${down} onPointerMove=${move} onPointerUp=${up} onPointerCancel=${cancel} onKeyDown=${key} onKeyUp=${e=>{if(/Arrow|Page|Home|End/.test(e.key))onCommit&&onCommit();}}>
+    <div className="sl-track"><div className="sl-fill" style=${{width:`calc(${pct}% + ${12-pct*.24}px)`}}></div>${marks.map((mk,i)=>html`<span key=${i} className="sl-mark" style=${{left:clamp((mk-min)/span,0,1)*100+'%'}}></span>`)}</div>
+    <div className="sl-thumb" style=${{left:`calc(${pct}% + ${12-pct*.24}px)`}}>${badge&&html`<span className="sl-badge">${badge}</span>`}</div>
+  </div>`;
+}
+
+
+/* ================= Shared hooks: simulated marks + simulator ================= */
+function useMarks(){
+  const [marks,setMarks]=useState({ETH:MK.ETH.mark0,BTC:MK.BTC.mark0});const runTo=useRef(null);
+  useEffect(()=>{const r=rng(7);const id=setInterval(()=>{setMarks(mk=>{const out={...mk};for(const k of ['ETH','BTC']){const m=MK[k];let next=mk[k]*(1+(r()-.5)*.0006);
+      if(runTo.current&&runTo.current.market===k){const g=runTo.current.price;next=mk[k]+(g-mk[k])*.35;if(Math.abs(g-next)<Math.max(m.tick*3,g*.0005))next=g;}
+      out[k]=fixP(roundTick(next,m),m);}return out;});},reduce?1200:600);return ()=>clearInterval(id);},[]);
+  return [marks,setMarks,runTo];
+}
+function useSim(marks,setMarks,runTo){
+  const [ledger,setLedger]=useState({wallet:2000,free:1250,locked:0});
+  const [pos,setPos]=useState(null);const [closed,setClosed]=useState(null);const [steps,setSteps]=useState(null);
+  const posRef=useRef(null);posRef.current=pos;
+  const settle=(exit,reason)=>{const p=posRef.current;if(!p)return;runTo.current=null;const m=MK[p.market];const d=p.side==='long'?1:-1;
+    const gross=reason==='liquidated'?-p.C:d*p.q*(exit-p.E);const fee=reason==='liquidated'?0:exit*p.q*m.taker;
+    const ret=reason==='liquidated'?0:p.C+gross-fee;
+    setLedger(l=>({...l,locked:Math.max(0,l.locked-p.C),free:l.free+ret}));
+    setClosed({...p,exit,gross,fees:p.entryFee+fee,net:reason==='liquidated'?-p.C-p.entryFee:gross-p.entryFee-fee,reason,
+      label:{tp:'Take profit filled',sl:'Stop loss filled',liquidated:'Liquidated',manual:'Closed'}[reason]});
+    setPos(null);};
+  useEffect(()=>{const p=posRef.current;if(!p||p.status!=='active')return;const m=MK[p.market];const M=marks[p.market];const d=p.side==='long'?1:-1;
+    if(p.tp.status==='registered'&&d*(M-p.tp.price)>=0){settle(p.tp.price,'tp');return;}
+    if(p.sl.status==='registered'&&d*(M-p.sl.price)<=0){settle(fixP(roundTick(p.sl.price*(1-d*.0006),m),m),'sl');return;}
+    const liq=liqPrice(p.side,p.E,p.q,p.C,m.mmr);if(d*(M-liq)<=0)settle(liq,'liquidated');},[marks]);
+  const T=ms=>new Promise(r=>setTimeout(r,reduce?60:ms));
+  const open=async(dr,q)=>{const m=MK[dr.market];const st=[{label:'Submitting bounded entry order',st:'run'},{label:'Acknowledged · awaiting fill',st:'wait'},{label:'Fill',st:'wait'},{label:'Take profit and stop loss',st:'wait'}];
+    const up=(i,s,label)=>{st[i]={...st[i],st:s,label:label||st[i].label};setSteps([...st]);};setSteps([...st]);
+    await T(650);up(0,'done');up(1,'run');await T(800);up(1,'done');
+    const v=vwapFor(m,dr.side,marks[dr.market],q.n)||{E:q.E};const qq=q.n*m.lot;const C=v.E*qq/dr.lev+topup(dr.side,marks[dr.market],v.E,qq);const fee=v.E*qq*m.taker;
+    up(2,'done',`Filled ${fmtQ(qq,m)} ${m.id} at ${fmtP(v.E,m)}`);setLedger(l=>({...l,free:l.free-C-fee,locked:l.locked+C}));
+    setPos({market:dr.market,side:dr.side,q:qq,E:v.E,C,entryFee:fee,goal:dr.goal,target:dr.target,tp:{price:dr.target,status:'pending'},sl:{price:dr.stop,status:'pending'},status:'active',at:Date.now()});
+    up(3,'run');await T(900);setPos(p=>p&&({...p,tp:{...p.tp,status:'registered'},sl:{...p.sl,status:'registered'}}));up(3,'done','TP and SL registered');await T(700);setSteps(null);};
+  const close=async()=>{const p=posRef.current;if(!p)return;setPos(x=>({...x,status:'closing'}));await T(900);const m=MK[p.market];
+    const v=vwapFor(m,p.side==='long'?'short':'long',marks[p.market],Math.round(p.q/m.lot))||{E:marks[p.market]};settle(v.E,'manual');};
+  const amend=async(which,price)=>{setPos(p=>p&&({...p,[which]:{...p[which],status:'changing',next:price}}));await T(1000);setPos(p=>p&&({...p,[which]:{price:p[which].next,status:'registered'}}));};
+  const nudge=a=>{const p=posRef.current;if(!p)return;const m=MK[p.market];
+    if(a==='tp')runTo.current={market:p.market,price:p.tp.price+(p.side==='long'?m.tick:-m.tick)};
+    else if(a==='sl')runTo.current={market:p.market,price:p.sl.price-(p.side==='long'?m.tick*4:-m.tick*4)};
+    else{runTo.current=null;setMarks(mk=>({...mk,[p.market]:fixP(roundTick(mk[p.market]*(1+a),m),m)}));}};
+  return {ledger,pos,closed,setClosed,steps,open,close,amend,nudge};
+}
+const pnlNow=(p,M)=>{const m=MK[p.market];const d=p.side==='long'?1:-1;const gross=d*p.q*(M-p.E);return {gross,net:gross-p.entryFee-M*p.q*m.taker};};
+
+const DAY={font:'Inter Tight',mono:'JetBrains Mono',grid:'rgba(20,18,16,.06)',axis:'rgba(20,18,16,.45)',zoneGain:'rgba(58,165,119,.09)',zoneLoss:'rgba(224,119,90,.10)',hatch:'rgba(212,81,58,.14)',area:'rgba(20,18,16,.07)',line:'#141210',now:'rgba(20,18,16,.25)',pulse:'#141210',entry:'rgba(20,18,16,.55)',target:'#3aa577',stop:'#e0775a',loss:'#d4513a',gain:'#1f9d63',cross:'rgba(20,18,16,.3)',tipBg:'#141210',tipFg:'#fff'};
+const NIGHT={font:'Inter Tight',mono:'JetBrains Mono',grid:'rgba(255,255,255,.05)',axis:'rgba(255,255,255,.38)',zoneGain:'rgba(111,220,170,.08)',zoneLoss:'rgba(255,155,128,.08)',hatch:'rgba(255,122,98,.16)',area:'rgba(255,255,255,.09)',line:'#f3f1ee',now:'rgba(255,255,255,.2)',pulse:'#ffffff',entry:'rgba(207,203,198,.8)',target:'#6fdcaa',stop:'#ff9b80',loss:'#ff7a62',gain:'#6fdcaa',cross:'rgba(255,255,255,.35)',tipBg:'rgba(0,0,0,.85)',tipFg:'#fff'};
+const LAYOUT=(W,H)=>{const mob=W<700;const hw=mob?120:186;const xR=W-hw-12;return {padT:mob?84:60,padB:34,xR,nowX:xR*(mob?.38:.55)};};
+
+/* ================= LiveChart: 60fps canvas chart with draggable target/stop handles =================
+   Canvas draws history, zones and lines every frame; the price eases toward each new tick and the
+   series scrolls continuously between ticks. Handles are DOM (focusable, draggable) positioned per frame. */
+function seedLive(id){const m=MK[id];const r=rng(m.seed*5+3);const n=160;const out=[];let v=m.mark0*(1-m.chg/100*.6);for(let i=0;i<n;i++){const t=i/(n-1);v+=((m.mark0*(1-m.chg/100*.6*(1-t)))-v)*.07+(r()-.5)*m.mark0*.0028;out.push(v);}out[n-1]=m.mark0;return out;}
+/* time ranges: Live is the scrolling tape; 1H/1D/1W are seeded walks that end at the live mark */
+const TF={live:{label:'Live',n:160,ms:600},'1H':{label:'1H',n:120,ms:30e3,k:.12,vol:.0011},'1D':{label:'1D',n:144,ms:600e3,k:1,vol:.0026},'1W':{label:'1W',n:168,ms:3600e3,k:-1.6,vol:.0062}};
+function tfChange(id,tf){return tf==='live'?null:MK[id].chg*TF[tf].k;}
+function genRange(id,tf){const m=MK[id],t=TF[tf];const r=rng(m.seed*13+t.n);const n=t.n;const start=m.mark0/(1+tfChange(id,tf)/100);const w=[0];for(let i=1;i<n;i++)w.push(w[i-1]+(r()-.5)*2);
+  const out=[];for(let i=0;i<n;i++){const u=i/(n-1);const br=w[i]-u*w[n-1];out.push((start+(m.mark0-start)*u)*(1+br*t.vol));}out[n-1]=m.mark0;return out;}
+function tfTime(tf,ago,base){if(tf==='live')return ago<1?'now':`${Math.round(ago/1000)}s ago`;const d=new Date((base||Date.now())-ago);
+  if(tf==='1W')return d.toLocaleString([], {weekday:'short',hour:'numeric'});return d.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});}
+function LiveChart({market,mark,lv,pos,T:theme,onTarget,onStop,onAmend,layout,pnlAxis,tf='live'}){
+  const m=MK[market];const wrap=useRef();const cv=useRef();const hT=useRef();const hS=useRef();const pT=useRef();const pS=useRef();const mk=useRef();const tip=useRef();
+  const st=useRef({rng:{},hx:null,hist:{ETH:seedLive('ETH'),BTC:seedLive('BTC')},disp:mark,last:performance.now(),dom:null,drag:null,hover:null,W:800,H:500,t0:performance.now()});
+  const P=useRef({});
+  const {T,S,E,liq,q}=lv;const d=lv.side==='long'?1:-1;
+  P.current={market,mark,T,S,E,liq,q,d,pos,onTarget,onStop,onAmend,theme,layout,m,pnlAxis,tf};
+  // append each new tick
+  useEffect(()=>{const s=st.current;const h=s.hist[market];h.push(mark);if(h.length>160)h.shift();s.last=performance.now();},[mark,market]);
+  useEffect(()=>{st.current.disp=mark;st.current.dom=null;},[market]);useEffect(()=>{st.current.dom=null;},[tf]);
+  useLayoutEffect(()=>{const ro=new ResizeObserver(([e])=>{const s=st.current;s.W=e.contentRect.width;s.H=e.contentRect.height;const dpr=Math.min(2,devicePixelRatio||1);cv.current.width=s.W*dpr;cv.current.height=s.H*dpr;cv.current.getContext('2d').setTransform(dpr,0,0,dpr,0,0);});ro.observe(wrap.current);return ()=>ro.disconnect();},[]);
+  useEffect(()=>{let raf;const g=cv.current.getContext('2d');
+    const frame=now=>{raf=requestAnimationFrame(frame);const s=st.current;const p=P.current;const th=p.theme;const L=p.layout(s.W,s.H);const W=s.W,H=s.H;
+      s.disp+=(p.mark-s.disp)*(reduce?1:.12);
+      const live=p.tf==='live';const TICK=600;let h,frac;
+      if(live){h=s.hist[p.market];frac=reduce?0:Math.min(1,(now-s.last)/TICK);}else{const key=p.market+p.tf;const base=s.rng[key]||(s.rng[key]=genRange(p.market,p.tf));const k=s.disp/base[base.length-1];h=base.map(v=>v*k);frac=0;}
+      const n=h.length;
+      // domain
+      const recent=live?h.slice(-120):h;const vals=[s.disp,p.T,p.S,p.E,...recent].filter(x=>x>0&&isFinite(x));let lo=Math.min(...vals),hi=Math.max(...vals);const pad=(hi-lo)*.1||p.mark*.02;lo-=pad;hi+=pad;
+      if(!s.dom)s.dom=[lo,hi];if(!s.drag){s.dom[0]+=(lo-s.dom[0])*.1;s.dom[1]+=(hi-s.dom[1])*.1;}
+      if(wrap.current){wrap.current.style.setProperty('--xr',L.xR+'px');wrap.current.style.setProperty('--nowx',L.nowX+'px');}const [y0,y1]=s.dom;const Y=v=>L.padT+(1-(v-y0)/(y1-y0))*(H-L.padT-L.padB);s.Y=Y;s.pOf=y=>y0+(1-(y-L.padT)/(H-L.padT-L.padB))*(y1-y0);s.L=L;
+      g.clearRect(0,0,W,H);
+      // grid + axis
+      const span=y1-y0,raw=span/6,mag=Math.pow(10,Math.floor(Math.log10(raw))),stp=[1,2,2.5,5,10].map(x=>x*mag).find(x=>x>=raw);
+      g.font=`500 10.5px ${th.mono}`;g.textAlign='right';
+      for(let v=Math.ceil(y0/stp)*stp;v<y1;v+=stp){const y=Math.round(Y(v))+.5;g.strokeStyle=th.grid;g.lineWidth=1;g.beginPath();g.moveTo(0,y);g.lineTo(L.xR,y);g.stroke();g.fillStyle=th.axis;g.fillText('$'+v.toLocaleString('en-US',{maximumFractionDigits:0}),L.xR-6,y-5);
+        if(p.pnlAxis&&p.q){const pl=p.d*p.q*(v-p.E);g.textAlign='left';g.fillStyle=pl>=0?th.gain:th.loss;g.fillText((pl>=0?'+':'−')+'$'+Math.abs(pl).toFixed(0),6,y-5);g.textAlign='right';}}
+      // zones
+      const xL=L.nowX,xR=L.xR;
+      g.fillStyle=th.zoneGain;g.fillRect(xL,Math.min(Y(p.T),Y(p.E)),xR-xL,Math.abs(Y(p.T)-Y(p.E)));
+      g.fillStyle=th.zoneLoss;g.fillRect(xL,Math.min(Y(p.S),Y(p.E)),xR-xL,Math.abs(Y(p.S)-Y(p.E)));
+      if(p.liq>0){const yl=Y(p.liq);g.save();g.beginPath();if(p.d>0)g.rect(xL,yl,xR-xL,H-yl);else g.rect(xL,0,xR-xL,yl);g.clip();g.strokeStyle=th.hatch;g.lineWidth=2;for(let x=xL-H;x<xR;x+=9){g.beginPath();g.moveTo(x,H);g.lineTo(x+H,0);g.stroke();}g.restore();}
+      // history (scrolls continuously between ticks)
+      const dx=live?L.nowX/(n-2):L.nowX/(n-1);const pts=[];for(let i=0;i<n;i++){const x=live?(i-1-frac)*dx:i*dx;const v=i===n-1?s.disp:h[i];pts.push([x,Y(v)]);}pts[n-1][0]=L.nowX;
+      const grad=g.createLinearGradient(0,L.padT,0,H);grad.addColorStop(0,th.area);grad.addColorStop(1,'rgba(0,0,0,0)');
+      g.beginPath();g.moveTo(pts[0][0],pts[0][1]);for(let i=1;i<n;i++){const [a,b]=pts[i-1],[c,e]=pts[i];g.quadraticCurveTo(a,b,(a+c)/2,(b+e)/2);}g.lineTo(pts[n-1][0],pts[n-1][1]);
+      g.save();g.lineTo(L.nowX,H);g.lineTo(pts[0][0],H);g.closePath();g.fillStyle=grad;g.fill();g.restore();
+      g.beginPath();g.moveTo(pts[0][0],pts[0][1]);for(let i=1;i<n;i++){const [a,b]=pts[i-1],[c,e]=pts[i];g.quadraticCurveTo(a,b,(a+c)/2,(b+e)/2);}g.lineTo(pts[n-1][0],pts[n-1][1]);
+      g.strokeStyle=th.line;g.lineWidth=2;g.lineJoin='round';g.stroke();
+      // now line + pulse
+      g.setLineDash([3,4]);g.strokeStyle=th.now;g.lineWidth=1;g.beginPath();g.moveTo(L.nowX+.5,L.padT-30);g.lineTo(L.nowX+.5,H-L.padB+24);g.stroke();g.setLineDash([]);
+      const ym=Y(s.disp);const pr=(now-s.t0)/1000%2/2;g.fillStyle=th.pulse;g.globalAlpha=(1-pr)*.35;g.beginPath();g.arc(L.nowX,ym,4+pr*12,0,7);g.fill();g.globalAlpha=1;g.fillStyle=th.line;g.beginPath();g.arc(L.nowX,ym,4,0,7);g.fill();
+      // time labels along the bottom of the history side
+      g.font=`500 10.5px ${th.mono}`;g.fillStyle=th.axis;g.textAlign='center';const tcfg=TF[p.tf];
+      {const narrow=L.nowX<420;const tick=(x,lab)=>{if(x<28||x>L.nowX-36)return;g.globalAlpha=.6;g.strokeStyle=th.grid;g.beginPath();g.moveTo(x+.5,L.padT);g.lineTo(x+.5,H-L.padB+6);g.stroke();g.globalAlpha=1;g.fillText(lab,x,H-L.padB+20);};
+        if(live){// relative labels: "30s ago" is always the same distance from now, so they never move
+          for(const sec of narrow?[60]:[30,60,90])tick(L.nowX-sec*1000/tcfg.ms*dx,`${sec}s ago`);}
+        else{// the range series is static, so its clock labels are pinned to when the range was opened
+          const key=p.market+p.tf;s.rngT=s.rngT||{};const nowT=s.rngT[key]||(s.rngT[key]=Date.now());const span=(n-1)*tcfg.ms;
+          const step={'1H':narrow?30*60e3:15*60e3,'1D':narrow?12*3600e3:6*3600e3,'1W':narrow?2*864e5:864e5}[p.tf];const off=p.tf==='1H'?0:new Date().getTimezoneOffset()*60e3;
+          for(let t=Math.ceil((nowT-span-off)/step)*step+off;t<nowT;t+=step){const i=n-1-(nowT-t)/tcfg.ms;const d=new Date(t);
+            tick(i*dx,p.tf==='1H'?d.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}):p.tf==='1D'?d.toLocaleTimeString([], {hour:'numeric'}):d.toLocaleDateString([], {weekday:'short'}));}}}
+      // high / low of the visible range
+      {let hi=0,lo=0;const from=live?1:0;for(let i=from;i<n;i++){if(h[i]>h[hi]||hi<from)hi=i;if(h[i]<h[lo]||lo<from)lo=i;}
+        g.font=`600 10.5px ${th.mono}`;g.fillStyle=th.axis;const lab=(i,up)=>{const [x,y]=pts[i];if(x<64||x>L.nowX-50)return;g.textAlign='center';g.fillText((up?'H ':'L ')+fmtP(h[i],p.m),x,up?y-9:y+17);g.beginPath();g.arc(x,y,2.4,0,7);g.fill();};lab(hi,true);lab(lo,false);}
+      // history hover: time and price
+      if(s.hx!=null&&!s.drag){const i=Math.max(live?1:0,Math.min(n-1,Math.round(live?s.hx/dx+1+frac:s.hx/dx)));const [x,y]=pts[i];const v=i===n-1?s.disp:h[i];
+        g.strokeStyle=th.cross;g.lineWidth=1;g.beginPath();g.moveTo(x+.5,L.padT-6);g.lineTo(x+.5,H-L.padB+6);g.stroke();g.fillStyle=th.line;g.beginPath();g.arc(x,y,4,0,7);g.fill();
+        const ch=(s.disp/v-1)*100;const txt=`${tfTime(p.tf,(n-1-i)*tcfg.ms,s.rngT&&s.rngT[p.market+p.tf])} · ${fmtP(v,p.m)} · ${ch>=0?'+':'−'}${Math.abs(ch).toFixed(2)}% since`;g.font=`600 12px ${th.font}`;const tw=g.measureText(txt).width+18;
+        const tx=Math.max(6,Math.min(L.nowX-tw-6,x-tw/2)),ty=Math.max(4,y-38);g.fillStyle=th.tipBg;g.beginPath();g.roundRect?g.roundRect(tx,ty,tw,24,8):g.rect(tx,ty,tw,24);g.fill();g.fillStyle=th.tipFg;g.textAlign='left';g.fillText(txt,tx+9,ty+16);}
+      // level lines
+      const lvl=(v,c,w,dash,full)=>{const y=Y(v);g.strokeStyle=c;g.lineWidth=w;g.setLineDash(dash||[]);g.globalAlpha=.25;g.beginPath();g.moveTo(0,y);g.lineTo(W,y);g.stroke();g.globalAlpha=1;g.beginPath();g.moveTo(xL,y);g.lineTo(full?W:xR,y);g.stroke();g.setLineDash([]);};
+      lvl(p.E,th.entry,1.2,[4,4]);if(p.liq>0)lvl(p.liq,th.loss,1,[2,4]);
+      lvl(p.T,th.target,s.drag&&s.drag.k==='T'?2.6:1.8);lvl(p.S,th.stop,s.drag&&s.drag.k==='S'?2.6:1.8);
+      g.font=`500 11px ${th.mono}`;g.textAlign='left';g.fillStyle=th.entry;g.fillText((p.pos?'entry ':'entry ≈ ')+fmtP(p.E,p.m),xL+12,Y(p.E)+16);
+      if(p.liq>0&&Y(p.liq)<H-8&&Y(p.liq)>8){g.fillStyle=th.loss;g.fillText('liq. ≈ '+fmtP(p.liq,p.m),xL+12,Y(p.liq)+16);}
+      g.fillStyle=th.axis;g.fillText('now · everything right of this line is conditional',xL+8,H-L.padB+20);
+      // hover readout
+      if(s.hover!=null&&!s.drag&&p.q){const v=s.pOf(s.hover);const pl=p.d*p.q*(v-p.E);g.strokeStyle=th.cross;g.lineWidth=1;g.beginPath();g.moveTo(xL,s.hover+.5);g.lineTo(xR,s.hover+.5);g.stroke();
+        const txt=`${p.m.id} at ${fmtP(v,p.m)} → ${(pl>=0?'+':'−')}$${Math.abs(pl).toFixed(2)}`;g.font=`600 12px ${th.font}`;const tw=g.measureText(txt).width+18;g.fillStyle=th.tipBg;const tx=xR-tw-8,ty=s.hover-30;g.beginPath();g.roundRect?g.roundRect(tx,ty,tw,24,8):g.rect(tx,ty,tw,24);g.fill();g.fillStyle=th.tipFg;g.textAlign='left';g.fillText(txt,tx+9,ty+16);}
+      // DOM handles
+      const place=(el,v)=>{if(el)el.style.transform=`translate3d(0,${(Y(v)).toFixed(1)}px,0)`;};
+      place(hT.current,p.T);place(hS.current,p.S);place(mk.current,s.disp);
+      if(pT.current){pT.current.style.transform=`translate3d(${xL+14}px,${(Y(p.T)-24).toFixed(1)}px,0)`;}
+      if(pS.current){pS.current.style.transform=`translate3d(${xL+14}px,${(Y(p.S)+(p.d>0?6:-24)).toFixed(1)}px,0)`;}
+      if(mk.current)mk.current.firstChild.textContent=fmtP(s.disp,p.m);
+    };raf=requestAnimationFrame(frame);return ()=>cancelAnimationFrame(raf);},[]);
+  const down=k=>e=>{e.preventDefault();e.currentTarget.setPointerCapture&&e.currentTarget.setPointerCapture(e.pointerId);const p=P.current;st.current.drag={k,start:k==='T'?p.T:p.S,v:k==='T'?p.T:p.S};};
+  const move=e=>{const s=st.current;const r=wrap.current.getBoundingClientRect();const y=e.clientY-r.top,x=e.clientX-r.left;const p=P.current;
+    if(s.drag){const v=fixP(roundTick(Math.max(p.m.tick,s.pOf(y)),p.m),p.m);s.drag.v=v;if(p.pos)s.drag.k==='T'?p.onTarget(v,true):p.onStop(v,true);else s.drag.k==='T'?p.onTarget(v):p.onStop(v);return;}
+    const L=s.L;const inY=L&&y>L.padT-10&&y<s.H-L.padB+10;s.hover=inY&&x>L.nowX&&x<L.xR?y:null;s.hx=inY&&x>0&&x<L.nowX?x:null;};
+  const up=()=>{const s=st.current;const g=s.drag;s.drag=null;const p=P.current;if(g&&p.pos&&g.v!==g.start)p.onAmend(g.k==='T'?'tp':'sl',g.v,s.Y(g.v)+wrap.current.getBoundingClientRect().top);};
+  const key=k=>e=>{const p=P.current;const stp=p.mark*.001*(e.shiftKey?10:1);const cur=k==='T'?p.T:p.S;let v=null;if(e.key==='ArrowUp')v=cur+stp;if(e.key==='ArrowDown')v=cur-stp;if(v!=null){e.preventDefault();v=fixP(roundTick(v,p.m),p.m);if(p.pos)p.onAmend(k==='T'?'tp':'sl',v,st.current.Y(v)+wrap.current.getBoundingClientRect().top);else k==='T'?p.onTarget(v):p.onStop(v);}};
+  const pl=x=>q?fmtUsd(d*q*(x-E),2,true):'';
+  return html`<div className="live" ref=${wrap} onPointerMove=${move} onPointerUp=${up} onPointerCancel=${up} onPointerLeave=${()=>{st.current.hover=null;st.current.hx=null;}}>
+    <canvas ref=${cv} aria-hidden="true"></canvas>
+    <div className="lv-pl t" ref=${pT}>${pl(T)}${pos?'':' at target'}</div>
+    <div className="lv-pl s" ref=${pS}>${pl(S)}${pos?'':' at stop'}</div>
+    <div className="lv-mark" ref=${mk}><span>${fmtP(mark,m)}</span></div>
+    <button className="lv-h t" ref=${hT} onPointerDown=${down('T')} onKeyDown=${key('T')} aria-label=${`${pos?'Take profit':'Target'} ${fmtP(T,m)}. Drag, or use arrow keys.`}><span>${pos?'Take profit ':''}${fmtP(T,m).replace(/\.0+$/,'')}</span>${!pos&&html`<em>${fmtPct((T/mark-1)*100)}</em>`}<i aria-hidden="true">⋮</i></button>
+    <button className="lv-h s" ref=${hS} onPointerDown=${down('S')} onKeyDown=${key('S')} aria-label=${`Stop ${fmtP(S,m)}. Drag, or use arrow keys.`}><span>Stop ${fmtP(S,m).replace(/\.0+$/,'')}</span>${!pos&&html`<em>${fmtPct((S/mark-1)*100)}</em>`}<i aria-hidden="true">⋮</i></button>
+  </div>`;
+}
+
+/* ================= Privy (simulated) =================
+   Mirrors the real integration:
+   - PrivyProvider { loginMethods:['email','google','twitter','wallet'], appearance:{theme: day|night},
+       embeddedWallets:{ ethereum:{ createOnLogin:'users-without-wallets' } }, defaultChain: monad }
+   - useLogin().login()            -> lazy: only when the user takes an onchain action
+   - useDepositFunds().depositFunds -> card / crypto transfer into the Privy wallet on Monad
+   - useSendTransaction(tx,{uiOptions}) -> Privy confirmation modal, gas sponsored
+   - signers (session signer + policy) -> "one-tap trading": no modal for in-policy actions
+*/
+const hex=n=>Array.from({length:n},()=>'0123456789abcdef'[Math.random()*16|0]).join('');
+const short=a=>a.slice(0,6)+'…'+a.slice(-4);
+const PERPL_EX='0x34b6c1e0f2a9d4c87b1e5f03a6d2c9e17b8f2e20';
+const TAP_CAP=1000, TAP_HRS=24;
+
+function usePrivy(){
+  const [user,setUser]=useState(null);const [modal,setModal]=useState(null);const [oneTap,setOneTap]=useState(null);
+  const uref=useRef(null);uref.current=user;const oref=useRef(null);oref.current=oneTap;
+  const ask=(k,extra)=>new Promise(res=>setModal({k,...extra,resolve:v=>{setModal(null);res(v);}}));
+  const login=()=>uref.current?Promise.resolve(true):ask('login');
+  const fund=need=>ask('fund',{need});
+  const tapOn=()=>{const o=oref.current;return !!(o&&o.until>Date.now());};
+  const sign=req=>{if(req.tap&&tapOn()&&(req.amt||0)<=oref.current.cap&&uref.current&&uref.current.embedded)return Promise.resolve('tap');return ask('sign',{req});};
+  const logout=()=>{setUser(null);setOneTap(null);};
+  return {user,setUser,uref,modal,ask,login,fund,sign,oneTap,setOneTap,tapOn,logout};
+}
+
+const Spin=html`<span className="pv-spin" aria-hidden="true"></span>`;
+const Check=html`<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M5 12.5l4.2 4.2L19 7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const Bolt=html`<svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M9.2 1L3 9.2h4.3L6.6 15 13 6.6H8.6z" fill="currentColor"/></svg>`;
+const GIcon=html`<svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><path d="M18.2 10.2c0-.6-.1-1.2-.2-1.7H10v3.3h4.6a4 4 0 0 1-1.7 2.6v2.1h2.8c1.6-1.5 2.5-3.7 2.5-6.3z" fill="#4285F4"/><path d="M10 18.5c2.3 0 4.2-.8 5.7-2.1l-2.8-2.1c-.8.5-1.8.8-2.9.8-2.2 0-4.1-1.5-4.8-3.6H2.3v2.2A8.5 8.5 0 0 0 10 18.5z" fill="#34A853"/><path d="M5.2 11.5a5 5 0 0 1 0-3.1V6.2H2.3a8.5 8.5 0 0 0 0 7.6z" fill="#FBBC05"/><path d="M10 4.9c1.3 0 2.4.4 3.3 1.3l2.5-2.5A8.5 8.5 0 0 0 2.3 6.2l2.9 2.2C5.9 6.4 7.8 4.9 10 4.9z" fill="#EA4335"/></svg>`;
+const WALLETS=[['MetaMask','#f6851b'],['Rabby','#7084ff'],['Phantom','#ab9ff2'],['Coinbase Wallet','#0052ff'],['WalletConnect','#3b99fc']];
+
+function PvShell({children,onClose,label,back}){
+  const ref=useRef();useEffect(()=>{const f=ref.current&&ref.current.querySelector('input,button.pv-pri');f&&f.focus();const k=e=>{if(e.key==='Escape'&&onClose)onClose();};addEventListener('keydown',k);return ()=>removeEventListener('keydown',k);},[]);
+  return ReactDOM.createPortal(html`<div className="pv-bg" onClick=${e=>{if(e.target===e.currentTarget&&onClose)onClose();}}><div className="pv" role="dialog" aria-modal="true" aria-label=${label} ref=${ref}>
+    <div className="pv-top">${back?html`<button className="pv-ic" onClick=${back} aria-label="Back">‹</button>`:html`<span></span>`}${onClose?html`<button className="pv-ic" onClick=${onClose} aria-label="Close">×</button>`:html`<span></span>`}</div>
+    ${children}
+    <div className="pv-foot">Protected by <b>privy</b></div></div></div>`,document.body);
+}
+
+/* ---------- login: email OTP, Google, X, or external wallet; embedded wallet created on first login ---------- */
+function PvLogin({px,done}){
+  const [st,setSt]=useState({s:'home'});const [email,setEmail]=useState('');const [code,setCode]=useState('');
+  const finish=(u)=>{setSt({s:'creating',u});setTimeout(()=>{setSt({s:'ok',u});setTimeout(()=>{px.setUser(u);done(true);},reduce?50:900);},reduce?50:u.embedded?1500:600);};
+  const okEmail=/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email);
+  const social=(name,label)=>{setSt({s:'social',name});setTimeout(()=>finish({method:name,label,addr:'0x'+hex(40),embedded:true}),reduce?50:1100);};
+  useEffect(()=>{if(st.s==='otp'&&code.length===6)finish({method:'email',label:email,addr:'0x'+hex(40),embedded:true});},[code]);
+  const close=st.s==='creating'||st.s==='ok'?null:()=>done(false);
+  const back=st.s==='otp'||st.s==='wallets'?()=>{setSt({s:'home'});setCode('');}:st.s==='wconnect'?()=>setSt({s:'wallets'}):null;
+  return html`<${PvShell} label="Log in or sign up" onClose=${close} back=${back}>
+    ${st.s==='home'&&html`<div className="pv-head"><span className="pv-logo">perpl<b>.</b></span><h3>Log in or sign up</h3><p>To place trades on Perpl. Looking around never needs an account.</p></div>
+      <form className="pv-email" onSubmit=${e=>{e.preventDefault();if(okEmail)setSt({s:'otp'});}}><svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><rect x="2.5" y="4.5" width="15" height="11" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M3.5 6l6.5 5 6.5-5" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+        <input type="email" placeholder="your@email.com" aria-label="Email" value=${email} onInput=${e=>setEmail(e.target.value)}/><button type="submit" disabled=${!okEmail}>Submit</button></form>
+      <button className="pv-opt" onClick=${()=>social('google','Google account')}>${GIcon}<span>Google</span></button>
+      <button className="pv-opt" onClick=${()=>social('twitter','X account')}><span className="pv-x" aria-hidden="true">𝕏</span><span>X / Twitter</span></button>
+      <button className="pv-opt" onClick=${()=>setSt({s:'wallets'})}><span className="pv-wi" aria-hidden="true"><svg viewBox="0 0 20 20" width="16" height="16"><rect x="2" y="5" width="16" height="11" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="14" cy="10.5" r="1.3" fill="currentColor"/></svg></span><span>Continue with a wallet</span><em>›</em></button>
+      <p className="pv-fine">New here? Logging in creates a Monad wallet for you. No seed phrase, no extension.</p>`}
+    ${st.s==='otp'&&html`<div className="pv-head"><span className="pv-badge">${html`<svg viewBox="0 0 20 20" width="22" height="22" aria-hidden="true"><rect x="2.5" y="4.5" width="15" height="11" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M3.5 6l6.5 5 6.5-5" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>`}</span><h3>Enter confirmation code</h3><p>Check <b>${email}</b> for an email from privy.io and enter the code below.</p></div>
+      <label className="pv-otp"><input inputMode="numeric" autoComplete="one-time-code" maxLength="6" aria-label="6 digit code" value=${code} onInput=${e=>setCode(e.target.value.replace(/\D/g,'').slice(0,6))}/>
+        ${[0,1,2,3,4,5].map(i=>html`<span key=${i} className=${i===code.length?'cur':''}>${code[i]||''}</span>`)}</label>
+      <button className="pv-link" onClick=${()=>setCode('482913')}>Simulation: fill the code for me</button>`}
+    ${st.s==='social'&&html`<div className="pv-head pv-center">${Spin}<h3>Signing in with ${st.name==='google'?'Google':'X'}</h3><p>Finishing in the pop-up window…</p></div>`}
+    ${st.s==='wallets'&&html`<div className="pv-head"><h3>Connect a wallet</h3><p>Already on Monad? Use the wallet you have.</p></div>
+      ${WALLETS.map(([n,c])=>html`<button key=${n} className="pv-opt" onClick=${()=>setSt({s:'wconnect',name:n})}><span className="pv-wl" style=${{background:c}} aria-hidden="true">${n[0]}</span><span>${n}</span>${n==='MetaMask'?html`<em className="pv-tag">Detected</em>`:''}</button>`)}`}
+    ${st.s==='wconnect'&&html`<div className="pv-head pv-center"><span className="pv-wl big" style=${{background:(WALLETS.find(w=>w[0]===st.name)||[])[1]}} aria-hidden="true">${st.name[0]}</span><h3>Sign in with ${st.name}</h3><p>${st.name} asks you to sign a message proving you own this address. It costs nothing and moves no funds.</p></div>
+      <pre className="pv-msg">${'perpl.xyz wants you to sign in with your Ethereum account.\n\nChain ID: 143 (Monad)\nNonce: '+hex(8)}</pre>
+      <button className="pv-pri" onClick=${()=>finish({method:'wallet',label:st.name,addr:'0x'+hex(40),embedded:false,ext:st.name})}>Simulate: sign in ${st.name}</button>`}
+    ${st.s==='creating'&&html`<div className="pv-head pv-center">${Spin}<h3>${st.u.embedded?'Creating your wallet':'Verifying signature'}</h3><p>${st.u.embedded?'A self-custodial wallet on Monad, secured by Privy. Only you can use it.':'Linking your wallet to Perpl…'}</p></div>`}
+    ${st.s==='ok'&&html`<div className="pv-head pv-center"><span className="pv-badge ok">${Check}</span><h3>You’re in</h3><p>${st.u.embedded?'Your wallet':st.u.ext} · <b className="mono">${short(st.u.addr)}</b></p></div>`}
+  <//>`;
+}
+
+/* ---------- funding: card / crypto transfer / faucet into the Privy wallet, then into Perpl ---------- */
+function PvFund({px,need,onCredit,done}){
+  const def=need?Math.max(100,Math.ceil((need+5)/100)*100):500;
+  const [amt,setAmt]=useState(def);const [how,setHow]=useState('card');const [st,setSt]=useState('pick');const [steps,setSteps]=useState([]);
+  const addr=px.user?px.user.addr:'';const run=async()=>{const lab=how==='card'?['Card payment approved','AUSD received in your Privy wallet','Deposited to Perpl · gas sponsored']:how==='crypto'?['Transfer detected','Converted to AUSD on Monad','Deposited to Perpl · gas sponsored']:['Faucet sent testnet AUSD','Deposited to Perpl · gas sponsored'];
+    setSt('run');for(let i=0;i<lab.length;i++){setSteps(lab.map((l,j)=>({l,s:j<i?'done':j===i?'run':'wait'})));await new Promise(r=>setTimeout(r,reduce?40:700));}
+    setSteps(lab.map(l=>({l,s:'done'})));onCredit(amt);await new Promise(r=>setTimeout(r,reduce?40:600));done(amt);};
+  return html`<${PvShell} label="Add funds" onClose=${st==='run'?null:()=>done(0)} back=${st==='pay'||st==='addr'?()=>setSt('pick'):null}>
+    ${st==='pick'&&html`<div className="pv-head"><h3>Add funds</h3><p>${need?html`This trade needs <b>${fmtUsd(need)}</b> more.`:'Fund your trading balance on Perpl.'}</p></div>
+      <div className="pv-amt"><span>$</span><input inputMode="decimal" aria-label="Amount in dollars" value=${amt} onInput=${e=>setAmt(Math.max(0,+e.target.value.replace(/[^\d.]/g,'')||0))}/><small>AUSD</small></div>
+      <div className="pv-chips">${[100,500,1000].map(v=>html`<button key=${v} aria-pressed=${amt===v} onClick=${()=>setAmt(v)}>${fmtShort(v)}</button>`)}</div>
+      <div className="pv-ways" role="radiogroup" aria-label="Funding method">${[['card','Card or Apple Pay','Instant'],['crypto','Transfer crypto','From any chain or exchange'],['faucet','Test funds','Free, for trying Perpl']].map(([k,t,s])=>html`<button key=${k} role="radio" aria-checked=${how===k} onClick=${()=>setHow(k)}><i></i><span><b>${t}</b><small>${s}</small></span></button>`)}</div>
+      <button className="pv-pri" disabled=${amt<(need||1)} onClick=${()=>how==='card'?setSt('pay'):how==='crypto'?setSt('addr'):run()}>${amt<(need||1)?`At least ${fmtUsd(need||1)}`:'Continue'}</button>`}
+    ${st==='pay'&&html`<div className="pv-head"><h3>Pay ${fmtUsd(amt)}</h3><p>You receive <b>${fmtUsd(amt)} AUSD</b> on Monad. Card fees are shown before you pay.</p></div>
+      <div className="pv-card"><span className="pv-visa">VISA</span><span>•••• 4242</span><small>Simulated card</small></div>
+      <button className="pv-pri" onClick=${run}>Pay ${fmtUsd(amt)}</button>`}
+    ${st==='addr'&&html`<div className="pv-head"><h3>Send to your wallet</h3><p>Send USDC or USDT from any chain. It’s converted to AUSD on Monad automatically.</p></div>
+      <div className="pv-addr"><span className="pv-qr" aria-hidden="true">${Array.from({length:49},(_,i)=>html`<i key=${i} style=${{opacity:((i*7919)%5)>1||[0,6,42,48,8,40].includes(i)?1:0}}></i>`)}</span><span><small>Your Privy wallet</small><b className="mono">${short(addr)}</b><button className="pv-link" onClick=${()=>{try{navigator.clipboard.writeText(addr);}catch(e){}}}>Copy address</button></span></div>
+      <button className="pv-pri" onClick=${run}>Simulate incoming ${fmtUsd(amt)}</button>`}
+    ${st==='run'&&html`<div className="pv-head"><h3>Adding ${fmtUsd(amt)}</h3></div><div className="steps">${steps.map((s,i)=>html`<div key=${i} className=${'st '+s.s}><i>${s.s==='done'?'✓':''}</i>${s.l}</div>`)}</div>`}
+  <//>`;
+}
+
+/* ---------- transaction confirmation (useSendTransaction uiOptions) ---------- */
+function PvSign({px,req,done}){
+  const [busy,setBusy]=useState(false);const [det,setDet]=useState(false);const u=px.user;const ext=u&&!u.embedded;
+  const go=async()=>{setBusy(true);await new Promise(r=>setTimeout(r,reduce?40:ext?1100:650));done(true);};
+  return html`<${PvShell} label=${req.title} onClose=${busy?null:()=>done(false)}>
+    <div className="pv-head"><span className="pv-app">perpl<b>.</b> <small>is asking you to confirm</small></span><h3>${req.title}</h3>${req.desc&&html`<p>${req.desc}</p>`}</div>
+    <div className="pv-rows">${(req.rows||[]).map(([k,v],i)=>html`<div key=${i}><span>${k}</span><b>${v}</b></div>`)}
+      <div><span>From</span><b className="mono">${short(u.addr)} <small>${ext?u.ext:'Privy wallet'}</small></b></div>
+      <div><span>Network</span><b>Monad</b></div>
+      <div><span>Network fee</span><b className="g">${ext?'≈ $0.002 MON':'Sponsored · $0.00'}</b></div></div>
+    <button className="pv-link" onClick=${()=>setDet(!det)} aria-expanded=${det}>${det?'Hide':'Show'} transaction details</button>
+    ${det&&html`<pre className="pv-msg">${'to:   '+(req.to||'Perpl Exchange '+short(PERPL_EX))+'\nfn:   '+(req.fn||'execOrder')+'\ndata: 0x'+hex(64)+'…'}</pre>`}
+    ${ext?html`<button className="pv-pri" disabled=${busy} onClick=${go}>${busy?html`${Spin} Waiting for ${u.ext}…`:`Simulate: confirm in ${u.ext}`}</button>`
+      :html`<button className="pv-pri" disabled=${busy} onClick=${go}>${busy?html`${Spin} Signing…`:'Approve'}</button>`}
+    <button className="pv-sec" disabled=${busy} onClick=${()=>done(false)}>Cancel</button>
+  <//>`;
+}
+
+function PvExport({px,done}){const [show,setShow]=useState(false);const k=useMemo(()=>'0x'+hex(64),[]);
+  return html`<${PvShell} label="Export wallet" onClose=${()=>done(false)}><div className="pv-head"><h3>Export your wallet</h3><p>Privy shows your key inside a secure frame. Perpl never sees it. Anyone with this key controls your funds.</p></div>
+    <div className=${'pv-key'+(show?' on':'')}><span className="mono">${k}</span></div>
+    <button className="pv-pri" onClick=${()=>setShow(!show)}>${show?'Hide key':'Reveal key'}</button><p className="pv-fine">Simulated key. It controls nothing.</p><//>`;}
+
+function PrivyLayer({px,onCredit}){const m=px.modal;if(!m)return null;
+  if(m.k==='login')return html`<${PvLogin} px=${px} done=${m.resolve}/>`;
+  if(m.k==='fund')return html`<${PvFund} px=${px} need=${m.need} onCredit=${onCredit} done=${m.resolve}/>`;
+  if(m.k==='sign')return html`<${PvSign} px=${px} req=${m.req} done=${m.resolve}/>`;
+  if(m.k==='export')return html`<${PvExport} px=${px} done=${m.resolve}/>`;
+  return null;}
+
+/* ---------- one-tap trading offer (session signer with a policy) ---------- */
+function OneTapSheet({px,onClose,toast}){
+  const on=px.tapOn();
+  return html`<${Sheet} title=${on?'One-tap trading is on':'Trade in one tap'} onClose=${onClose}>
+    <p className="ep-note" style=${{margin:0,fontSize:'14px'}}>${on?'Trades and edits sign instantly within these limits. Turn it off any time.':'Trade without the confirmation pop-up. It only works on Perpl, within the limits below, and you can turn it off any time.'}</p>
+    <div className="rows">
+      <div className="r"><span className="k">Can use</span><span className="v">Perpl Exchange only</span></div>
+      <div className="r"><span className="k">Per action</span><span className="v">Up to ${fmtUsd(TAP_CAP,0)} of collateral</span></div>
+      <div className="r"><span className="k">${on?'Ends':'Lasts'}</span><span className="v">${on?new Date(px.oneTap.until).toLocaleString([], {weekday:'short',hour:'numeric',minute:'2-digit'}):`${TAP_HRS} hours`}</span></div>
+      <div className="r"><span className="k">Always asks you</span><span className="v">Withdrawals and anything over the limit</span></div>
+    </div>
+    ${on?html`<button className="big red" onClick=${()=>{px.setOneTap(null);toast(html`<b>One-tap trading off</b> Each trade asks to confirm again.`);onClose();}}>Turn off and revoke</button>`
+      :html`<button className="big" onClick=${async()=>{onClose();const ok=await px.sign({title:'Enable one-tap trading',desc:'Adds a session signer to your Privy wallet with this policy.',fn:'addSigner',to:'Privy signer policy',rows:[['Contract','Perpl Exchange'],['Limit',`${fmtUsd(TAP_CAP,0)} per action`],['Expires',`in ${TAP_HRS}h`]]});if(ok){px.setOneTap({until:Date.now()+TAP_HRS*3600e3,cap:TAP_CAP});toast(html`<b>${Bolt} One-tap trading on</b> for ${TAP_HRS} hours`,'g');}}}>Turn on one-tap trading</button>
+        <button className="ghost" onClick=${onClose}>Not now</button>`}
+  <//>`;
+}
+
+
+/* ================= Small editors ================= */
+function NumIn({value,onCommit,onPreview,prefix='$',label,dp=2,focus=true}){
+  const [raw,setRaw]=useState(String(value));const ed=useRef(false);const ref=useRef();
+  useEffect(()=>{if(!ed.current)setRaw((+value).toFixed(dp).replace(/\.0+$/,''));},[value]);
+  useEffect(()=>{if(focus&&ref.current){ref.current.focus({preventScroll:true});ref.current.select();}},[]);
+  const commit=()=>{ed.current=false;const v=parseNum(raw);if(v!=null&&v>=0)onCommit(v);};
+  return html`<label className="numin"><span>${prefix}</span><input ref=${ref} inputMode="decimal" aria-label=${label} value=${raw} onFocus=${()=>{ed.current=true;}}
+    onInput=${e=>{ed.current=true;setRaw(e.target.value);const v=parseNum(e.target.value);if(v!=null&&v>=0&&onPreview)onPreview(v);}} onBlur=${commit} onKeyDown=${e=>{if(e.key==='Enter'){e.preventDefault();commit();}}}/><em>type or drag</em></label>`;
+}
+function EditPop({anchor,onClose,label,children,width=300}){
+  const ref=useRef();const [pos,setPos]=useState(null);const mob=innerWidth<640;
+  useLayoutEffect(()=>{if(mob)return;const r=anchor.getBoundingClientRect();const h=ref.current.offsetHeight;let top=r.bottom+10;if(top+h>innerHeight-12)top=Math.max(12,r.top-h-10);const left=clamp(r.left,12,innerWidth-width-12);setPos({left,top,ox:clamp(r.left+r.width/2-left,20,width-20)});},[]);
+  useEffect(()=>{const dn=e=>{if(ref.current&&!ref.current.contains(e.target)&&!anchor.contains(e.target))onClose();};const k=e=>{if(e.key==='Escape'){onClose();anchor.focus();}};
+    document.addEventListener('pointerdown',dn,true);document.addEventListener('keydown',k);return ()=>{document.removeEventListener('pointerdown',dn,true);document.removeEventListener('keydown',k);};},[]);
+  return ReactDOM.createPortal(html`<${React.Fragment}>${mob&&html`<div className="ep-bg" onClick=${onClose}></div>`}<div className=${'ep'+(mob?' sheet':'')} ref=${ref} role="dialog" aria-label=${label} style=${mob?{}:{left:(pos?pos.left:-9999)+'px',top:(pos?pos.top:0)+'px',width:width+'px','--ox':(pos?pos.ox:20)+'px'}}>${mob&&html`<button className="ep-x" onClick=${onClose}>Done</button>`}${children}</div><//>`,document.body);
+}
+function Sheet({title,onClose,children,labelId}){
+  const ref=useRef();useEffect(()=>{const h=ref.current&&ref.current.querySelector('h2');h&&h.focus();const k=e=>{if(e.key==='Escape')onClose();};addEventListener('keydown',k);return ()=>removeEventListener('keydown',k);},[]);
+  return ReactDOM.createPortal(html`<div className="sh-bg" onClick=${e=>{if(e.target===e.currentTarget)onClose();}}><div className="sh" ref=${ref} role="dialog" aria-modal="true" aria-labelledby="sh-h">
+    <div className="sh-h"><h2 id="sh-h" tabIndex="-1">${title}</h2><button className="ghost" onClick=${onClose}>Close</button></div>${children}</div></div>`,document.body);
+}
+function Tip({children,text}){return html`<span className="tip" tabIndex="0">${children}<span className="tip-i" aria-hidden="true">?</span><span className="tip-b" role="tooltip">${text}</span></span>`;}
+const perHour=x=>x<.01?'under 1¢ an hour':'about '+fmtUsd(x)+' an hour';
+const GLOSS={
+  collateral:'The money set aside for this trade. Each position has its own, so one can’t drain another.',
+  liq:'If the price reaches this level, Perpl closes the position automatically. Adding collateral moves it further away.',
+  funding:'A small fee between buyers and sellers, about every hour. Depending on the market, you either pay it or receive it.',
+  lev:'How much bigger your position is than your collateral. Higher leverage needs less money but puts liquidation closer.',
+};
+
+/* ================= Multi-position simulator (one isolated position per market) ================= */
+function useBook(marks,setMarks,runTo){
+  const [ledger,setLedger]=useState({wallet:0,free:0,locked:0});
+  const [book,setBook]=useState({});const [hist,setHist]=useState([]);const [result,setResult]=useState(null);const [toasts,setToasts]=useState([]);const [steps,setSteps]=useState(null);
+  const ref=useRef(book);ref.current=book;const mref=useRef(marks);mref.current=marks;
+  const toast=(t,kind='')=>{const id=Math.random();setToasts(x=>[...x.slice(-2),{id,t,kind}]);setTimeout(()=>setToasts(x=>x.filter(y=>y.id!==id)),5600);};
+  const T=ms=>new Promise(r=>setTimeout(r,reduce?60:ms));
+  const settle=(mk,exit,reason,frac=1)=>{const p=ref.current[mk];if(!p)return;if(runTo.current&&runTo.current.market===mk)runTo.current=null;const m=MK[mk];const d=p.side==='long'?1:-1;
+    const qx=frac>=1?p.q:Math.round(p.q*frac/m.lot)*m.lot;const f=qx/p.q;const Cx=p.C*f,Fx=p.F*f,efx=p.entryFee*f;
+    const gross=d*qx*(exit-p.E);const fee=reason==='liq'?0:exit*qx*m.taker;
+    const ret=reason==='liq'?Math.max(0,Cx+gross+Fx)*.8:Cx+gross-fee+Fx;
+    setLedger(l=>({...l,locked:Math.max(0,l.locked-Cx),free:l.free+ret}));
+    const net=reason==='liq'?ret-Cx-efx:gross-fee-efx+Fx;
+    setHist(h=>[{market:mk,side:p.side,q:qx,E:p.E,exit,gross,net,reason,at:Date.now()},...h].slice(0,20));
+    setBook(b=>{const n={...b};if(f>=.9999)delete n[mk];else n[mk]={...p,q:p.q-qx,C:p.C-Cx,F:p.F-Fx,entryFee:p.entryFee-efx,status:'active'};return n;});
+    const label={tp:`Take profit hit on ${mk}`,sl:`Stop hit on ${mk}`,liq:`${mk} position liquidated`,manual:f>=.9999?`Closed your ${mk} position`:`Closed ${fmtQ(qx,m)} ${mk}`}[reason];
+    if(f>=.9999)setResult({market:mk,side:p.side,reason,exit,net,ret,E:p.E,tp:p.tp.price,sl:p.sl.price,at:Date.now()});
+    else toast(html`<b>${label}</b> ${fmtUsd(net,2,true)} after fees`,net>=0?'g':'r');};
+  useEffect(()=>{for(const mk of Object.keys(ref.current)){const p=ref.current[mk];if(p.status!=='active')continue;const m=MK[mk];const M=marks[mk];const d=p.side==='long'?1:-1;
+      if(p.tp.status==='registered'&&d*(M-p.tp.price)>=0){settle(mk,p.tp.price,'tp');continue;}
+      if(p.sl.status==='registered'&&d*(M-p.sl.price)<=0){settle(mk,fixP(roundTick(p.sl.price*(1-d*.0006),m),m),'sl');continue;}
+      const liq=liqPrice(p.side,p.E,p.q,p.C,m.mmr,p.F);if(d*(M-liq)<=0)settle(mk,liq,'liq');}},[marks]);
+  // funding accrues on every open position (sped up for the simulation)
+  useEffect(()=>{const id=setInterval(()=>{setBook(b=>{const n={...b};for(const mk of Object.keys(n)){const p=n[mk];const m=MK[mk];const d=p.side==='long'?1:-1;n[mk]={...p,F:p.F-d*m.fund*mref.current[mk]*p.q,fEv:(p.fEv||0)+1};}return n;});},12000);return ()=>clearInterval(id);},[]);
+  const open=async(dr,q)=>{setResult(r=>r&&r.market===dr.market?null:r);const m=MK[dr.market];const ex=ref.current[dr.market];const st=[{label:'Placing your order',st:'run'},{label:'Waiting for it to fill',st:'wait'},{label:'Filled',st:'wait'},{label:'Setting take profit and stop',st:'wait'}];
+    const up=(i,s,label)=>{st[i]={...st[i],st:s,label:label||st[i].label};setSteps([...st]);};setSteps([...st]);
+    await T(600);up(0,'done');up(1,'run');await T(700);up(1,'done');
+    const v=vwapFor(m,dr.side,mref.current[dr.market],q.n)||{E:q.E};const qq=q.n*m.lot;const C=v.E*qq/dr.lev+topup(dr.side,mref.current[dr.market],v.E,qq);const fee=v.E*qq*m.taker;
+    up(2,'done',`Filled ${fmtQ(qq,m)} ${m.id} at ${fmtP(v.E,m)}`);setLedger(l=>({...l,free:l.free-C-fee,locked:l.locked+C}));
+    setBook(b=>{const p=b[dr.market];const base={market:dr.market,side:dr.side,tp:{price:dr.target,status:'pending'},sl:{price:dr.stop,status:'pending'},status:'active',at:Date.now()};
+      if(p&&p.side===dr.side){const nq=p.q+qq;return {...b,[dr.market]:{...p,...base,q:nq,E:(p.E*p.q+v.E*qq)/nq,C:p.C+C,entryFee:p.entryFee+fee,goal:p.goal+dr.goal,lev:dr.lev,merged:true}};}
+      return {...b,[dr.market]:{...base,q:qq,E:v.E,C,entryFee:fee,F:0,goal:dr.goal,lev:dr.lev}};});
+    up(3,'run');await T(800);setBook(b=>b[dr.market]?{...b,[dr.market]:{...b[dr.market],tp:{...b[dr.market].tp,status:'registered'},sl:{...b[dr.market].sl,status:'registered'}}}:b);up(3,'done','Take profit and stop set');
+    await T(500);setSteps(null);toast(html`<b>${ex?`Added to your ${m.id} position`:`You’re in: ${dr.side} ${fmtQ(qq,m)} ${m.id}`}</b> Take profit and stop are set.`,'g');};
+  const close=async(mk,frac)=>{setBook(b=>({...b,[mk]:{...b[mk],status:'closing'}}));await T(800);const p=ref.current[mk];if(!p)return;const m=MK[mk];
+    const lots=Math.round(p.q*frac/m.lot);const v=vwapFor(m,p.side==='long'?'short':'long',mref.current[mk],Math.max(1,lots))||{E:mref.current[mk]};settle(mk,v.E,'manual',frac);};
+  const margin=async(mk,amt)=>{const p=ref.current[mk];if(!p)return;const m=MK[mk];setBook(b=>({...b,[mk]:{...b[mk],status:'margin'}}));await T(650);
+    setLedger(l=>({...l,free:l.free-amt,locked:l.locked+amt}));setBook(b=>({...b,[mk]:{...b[mk],C:b[mk].C+amt,status:'active'}}));
+    const nl=liqPrice(p.side,p.E,p.q,p.C+amt,m.mmr,p.F);toast(html`<b>Added ${fmtUsd(Math.abs(amt))} collateral to ${mk}</b> Liquidation moved to ${fmtP(nl,m)}`);};
+  const amend=async(mk,which,price)=>{setBook(b=>b[mk]?{...b,[mk]:{...b[mk],[which]:{...b[mk][which],status:'changing',next:price}}}:b);await T(950);
+    setBook(b=>b[mk]?{...b,[mk]:{...b[mk],[which]:{price:b[mk][which].next,status:'registered'}}}:b);toast(html`<b>${which==='tp'?'Take profit':'Stop'} on ${mk} moved</b> to ${fmtP(price,MK[mk])}`);};
+  const nudge=(mk,a)=>{const p=ref.current[mk];const m=MK[mk];
+    if(a==='tp'&&p)runTo.current={market:mk,price:p.tp.price+(p.side==='long'?m.tick:-m.tick)};
+    else if(a==='sl'&&p)runTo.current={market:mk,price:p.sl.price-(p.side==='long'?m.tick*4:-m.tick*4)};
+    else{runTo.current=null;setMarks(x=>({...x,[mk]:fixP(roundTick(x[mk]*(1+a),m),m)}));}};
+  const move=async(kind,amt)=>{await T(500);if(kind==='deposit')setLedger(l=>({...l,wallet:l.wallet-amt,free:l.free+amt}));else setLedger(l=>({...l,wallet:l.wallet+amt,free:l.free-amt}));toast(html`<b>${kind==='deposit'?'Deposited':'Withdrew'} ${fmtUsd(amt)}</b> ${kind==='deposit'?'to your trading balance':'to your wallet'}`);};
+  const credit=amt=>setLedger(l=>({...l,free:l.free+amt}));const reset=()=>{setLedger({wallet:0,free:0,locked:0});setBook({});setHist([]);setResult(null);};
+  return {ledger,book,hist,toasts,steps,result,clearResult:()=>setResult(null),open,close,margin,amend,nudge,move,credit,reset,toast};
+}
+
+/* ================= Sheets ================= */
+function CollateralSheet({p,M,free,onDo,onClose}){
+  const m=MK[p.market];const [amt,setAmt]=useState(Math.min(100,Math.floor(free)));const max=Math.floor(free);
+  const a=clamp(amt,0,max);const nC=p.C+a;const liq0=liqPrice(p.side,p.E,p.q,p.C,m.mmr,p.F),liq1=liqPrice(p.side,p.E,p.q,nC,m.mmr,p.F);
+  return html`<${Sheet} title=${`Add collateral to ${m.id}`} onClose=${onClose}>
+    <${NumIn} value=${a} label="Amount" focus=${false} onPreview=${setAmt} onCommit=${v=>setAmt(Math.min(v,max))}/>
+    ${max>=1?html`<${Slider} value=${clamp(Math.round(a),0,max)} min=${0} max=${max} step=${1} color="var(--mint)" label="Amount" valuetext=${fmtUsd(a)} onChange=${setAmt}/>`:html`<p className="ep-note">You have no free money to add. Add funds from your account first.</p>`}
+    <div className="rows">
+      <div className="r"><span className="k">Collateral</span><span className="v">${fmtUsd(p.C)} → <b>${fmtUsd(nC)}</b></span></div>
+      <div className="r"><span className="k">Liquidation</span><span className="v">${fmtP(liq0,m)} → <b className="g">${fmtP(liq1,m)}</b><small>${Math.abs((liq1/M-1)*100).toFixed(0)}% away</small></span></div>
+      <div className="r"><span className="k">Leverage</span><span className="v">${(p.E*p.q/p.C).toFixed(1)}x → <b>${(p.E*p.q/nC).toFixed(1)}x</b></span></div>
+      <div className="r"><span className="k">Left to trade</span><span className="v">${fmtUsd(free-a)}</span></div>
+    </div>
+    <button className="big" aria-disabled=${a<=0||a>max} onClick=${()=>{if(a>0&&a<=max){onDo(a);onClose();}}}>Add ${fmtUsd(a)}</button>
+  <//>`;
+}
+function CloseSheet({p,M,onDo,onClose}){
+  const m=MK[p.market];const [pct,setPct]=useState(100);const d=p.side==='long'?1:-1;
+  const lots=Math.round(p.q/m.lot);const n=pct===100?lots:Math.floor(lots*pct/100);const q=n*m.lot;
+  const v=vwapFor(m,p.side==='long'?'short':'long',M,Math.max(1,n))||{E:M};const gross=d*q*(v.E-p.E);const fee=v.E*q*m.taker;const fr=q/p.q;
+  const fees=fee+p.entryFee*fr;const net=gross-fees+p.F*fr;const back=p.C*fr+gross-fee+p.F*fr;
+  return html`<${Sheet} title=${`Close ${m.id} ${p.side}`} onClose=${onClose}>
+    <div className="segd" role="group" aria-label="How much to close">${[25,50,100].map(x=>html`<button key=${x} aria-pressed=${pct===x} onClick=${()=>setPct(x)}>${x}%</button>`)}</div>
+    <div className="kv one"><div><small>You get back about</small><b>${fmtUsd(Math.max(0,back))}</b></div></div>
+    <div className="rows">
+      <div className="r"><span className="k">Profit or loss</span><span className=${'v '+(net>=0?'g':'r')}>${fmtUsd(net,2,true)}<small>after ${fmtUsd(fees)} in fees</small></span></div>
+      <div className="r"><span className="k">Amount</span><span className="v">${fmtQ(q,m)} of ${fmtQ(p.q,m)} ${m.id}</span></div>
+      <div className="r"><span className="k">Exit price</span><span className="v">about ${fmtP(v.E,m)}</span></div>
+    </div>
+    <p className="ep-note" style=${{margin:0}}>${pct===100?'Your take profit and stop will be removed.':`Your take profit and stop will cover the remaining ${fmtQ(p.q-q,m)} ${m.id}.`}</p>
+    <button className="big red" aria-disabled=${!n} onClick=${()=>{if(n){onDo(pct/100);onClose();}}}>Close ${fmtQ(q,m)} ${m.id}</button>
+  <//>`;
+}
+function AccountSheet({bk,marks,onClose,px,gate,openTap}){
+  const [tab,setTab]=useState('overview');const [amt,setAmt]=useState(250);const [busy,setBusy]=useState(false);
+  const pos=Object.values(bk.book);const upnl=pos.reduce((s,p)=>s+pnlNow(p,marks[p.market]).gross+p.F,0);const equity=bk.ledger.free+bk.ledger.locked+upnl;
+  const max=tab==='deposit'?bk.ledger.wallet:bk.ledger.free;
+  const u=px.user;const [cp,setCp]=useState(false);
+  return html`<${Sheet} title="Account" onClose=${onClose}>
+    <div className="who"><span className="av" aria-hidden="true">${(u.label||'?')[0].toUpperCase()}</span><span><b>${u.label}</b><button className="addr" onClick=${()=>{try{navigator.clipboard.writeText(u.addr);}catch(e){}setCp(true);setTimeout(()=>setCp(false),1200);}}><span className="mono">${short(u.addr)}</span> ${cp?'copied':'copy'}</button><small>${u.embedded?'Privy wallet':u.ext} · Monad</small></span></div>
+    ${u.embedded&&html`<button className=${'taprow'+(px.tapOn()?' on':'')} onClick=${openTap}><span className="bolt">${Bolt}</span><span><b>One-tap trading</b><small>${px.tapOn()?'On · trades sign instantly':'Off · each trade asks to confirm'}</small></span><em>${px.tapOn()?'Manage':'Turn on'}</em></button>`}
+    <span className="simtag">Simulation · no real funds</span>
+    <div className="kv">
+      <div className="wide"><small>Total value</small><b><${Odo} text=${fmtUsd(equity)}/></b></div><div><small>Free to trade</small><b><${Odo} text=${fmtUsd(bk.ledger.free)}/></b></div>
+      <div><small>In positions</small><b>${fmtUsd(bk.ledger.locked)}</b></div></div>
+    <div className="segd" role="group">${[['overview','History'],['withdraw','Withdraw']].map(([k,l])=>html`<button key=${k} aria-pressed=${tab===k} onClick=${()=>{setTab(k);setAmt(250);}}>${l}</button>`)}</div>
+    ${tab==='overview'?html`<div className="hist">${bk.hist.length===0?html`<p className="ep-note">Closed trades will show up here with what you made or lost.</p>`:bk.hist.map((h,i)=>html`<div key=${i} className="hrow"><span><b>${h.market} ${h.side}</b><small>${({tp:'Take profit hit',sl:'Stop hit',liq:'Liquidated',manual:'Closed'})[h.reason]} · ${fmtP(h.E,MK[h.market])} → ${fmtP(h.exit,MK[h.market])}</small></span><b className=${h.net>=0?'g':'r'}>${fmtUsd(h.net,2,true)}</b></div>`)}</div>`
+    :html`<${NumIn} value=${amt} label="Amount" focus=${false} onPreview=${setAmt} onCommit=${setAmt}/>
+      <${Slider} value=${clamp(Math.round(amt),1,Math.max(2,Math.floor(max)))} min=${1} max=${Math.max(2,Math.floor(max))} step=${1} color="var(--lav)" label="Amount" valuetext=${fmtUsd(amt)} onChange=${setAmt}/>
+      <p className="ep-note">${tab==='deposit'?'':'You can withdraw anything that isn’t in a position.'}</p>
+      <button className="big" aria-disabled=${busy||amt<=0||amt>max} onClick=${async()=>{if(busy||amt<=0||amt>max)return;setBusy(true);const ok=await gate({title:`Withdraw ${fmtUsd(amt)}`,desc:'From your Perpl balance back to your wallet.',fn:'withdrawCollateral',rows:[['Amount',fmtUsd(amt)+' AUSD'],['To',short(u.addr)]]});if(ok)await bk.move(tab,amt);setBusy(false);if(ok)setTab('overview');}}>${busy?'Confirming…':(tab==='deposit'?'Deposit ':'Withdraw ')+fmtUsd(amt)}</button>`}
+    <div className="acts"><button className="ghost solid" onClick=${()=>{onClose();px.fund(0);}}>Add funds</button>${u.embedded&&html`<button className="ghost" onClick=${()=>px.ask('export')}>Export wallet</button>`}<button className="ghost" onClick=${()=>{onClose();px.logout();bk.reset();}}>Log out</button></div>
+  <//>`;
+}
+
+/* ================= App ================= */
+const Sun=html`<svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><circle cx="10" cy="10" r="3.6" fill="currentColor"/><g stroke="currentColor" stroke-width="1.6" stroke-linecap="round">${[0,45,90,135,180,225,270,315].map(a=>html`<line key=${a} x1=${10+Math.cos(a*Math.PI/180)*6.2} y1=${10+Math.sin(a*Math.PI/180)*6.2} x2=${10+Math.cos(a*Math.PI/180)*8.2} y2=${10+Math.sin(a*Math.PI/180)*8.2}/>`)}</g></svg>`;
+const Moon=html`<svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M15.5 12.6A6.5 6.5 0 0 1 7.4 4.5a6.5 6.5 0 1 0 8.1 8.1z" fill="currentColor"/></svg>`;
+function App(){
+  const [marks,setMarks,runTo]=useMarks();const bk=useBook(marks,setMarks,runTo);const px=usePrivy();const [tapOffer,setTapOffer]=useState(false);const [tapBanner,setTapBanner]=useState(false);const signs=useRef(0);const offered=useRef(false);
+  // lazy auth (Polymarket-style): browse freely; log in, fund and sign only at the moment of an onchain action
+  const gate=async(req,need=0)=>{if(!px.uref.current){if(!await px.login())return false;}
+    if(need>0){const lack=need-bk.ledger.free;if(lack>0.005){const got=await px.fund(lack);if(!got)return false;}}
+    const r=await px.sign(req);if(r==='tap')bk.toast(html`<b>${Bolt} Signed instantly</b> one-tap trading`);
+    if(r===true){signs.current++;const u=px.uref.current;if(signs.current>=2&&!offered.current&&u&&u.embedded&&!px.tapOn()){offered.current=true;setTimeout(()=>setTapBanner(true),1600);}}
+    return !!r;};
+  const [mode,setMode]=useState(()=>{try{return localStorage.getItem('perpl-mode')||'day';}catch(e){return 'day';}});
+  useEffect(()=>{document.documentElement.setAttribute('data-mode',mode);try{localStorage.setItem('perpl-mode',mode);}catch(e){}},[mode]);
+  const TH=mode==='night'?NIGHT:DAY;
+  const [draft,setDraft]=useState({market:'ETH',side:'long',goal:500,target:3100,budget:800,stop:2404.05,lev:3,rev:1});
+  const set=pa=>setDraft(dr=>({...dr,...pa,rev:dr.rev+1}));
+  const [sel,setSel]=useState('new');const [demo,setDemo]=useState(()=>innerWidth>640);const [tf,setTf]=useState('live');
+  const [open,setOpen]=useState(null);const [anchor,setAnchor]=useState(null);const [frozen,setFrozen]=useState(null);
+  const [review,setReview]=useState(null);const [qAt,setQAt]=useState(0);const [ack,setAck]=useState(false);const [now,setNow]=useState(Date.now());
+  const [amend,setAmend]=useState(null);const [busyOpen,setBusyOpen]=useState(false);const [dragV,setDragV]=useState(null);const [sheet,setSheet]=useState(null);const [stage,setStage]=useState({});
+  const drawerH=useRef();const headEl=useRef();const sentRef=useRef();
+  const [vw,setVw]=useState(innerWidth);useEffect(()=>{const h=()=>setVw(innerWidth);addEventListener('resize',h);return ()=>removeEventListener('resize',h);},[]);
+  useEffect(()=>{const id=setInterval(()=>setNow(Date.now()),250);return ()=>clearInterval(id);},[]);
+  useEffect(()=>{setAck(false);},[draft.rev]);
+  useEffect(()=>{const r=bk.result;if(!r)return;const rm=MK[r.market];const M2=marks[r.market];
+    setDraft(dr=>dr.market!==r.market?dr:{...dr,side:r.side,target:fixP(roundTick(M2*(r.tp/r.E),rm),rm),stop:fixP(roundTick(M2*(r.sl/r.E),rm),rm),rev:dr.rev+1});},[bk.result&&bk.result.at]);
+  useEffect(()=>{if(review&&drawerH.current)drawerH.current.focus();},[!!review]);
+  // follow positions: if the selected one closes, fall back to another or to a new trade
+  useEffect(()=>{if(sel!=='new'&&!bk.book[sel]){const k=Object.keys(bk.book)[0];setSel(k||'new');}},[bk.book,sel]);
+  const pos=sel!=='new'?bk.book[sel]:null;
+  const ex=bk.book[draft.market];const conflict=!pos&&ex&&ex.side!==draft.side;const adding=!pos&&ex&&ex.side===draft.side;
+  const free=bk.ledger.free;const authed=!!px.user;
+  const calc=useMemo(()=>compute({...draft,budget:authed?free:1e9},marks,authed?free:1e9),[draft,marks,free,authed]);
+  const m=MK[draft.market];const M=marks[draft.market];const d=draft.side==='long'?1:-1;
+  const tog=(k,e)=>{if(open===k){setOpen(null);return;}setAnchor(e.currentTarget);setFrozen({M,E:calc.E||M,sLo:calc.sLo,sHi:calc.sHi});if(pos)setStage({tp:pos.tp.price,sl:pos.sl.price});setOpen(k);};
+  const flip=()=>{const tp=draft.target/M-1,sp=draft.stop/M-1;set({side:d>0?'short':'long',target:fixP(roundTick(M*(1-tp),m),m),stop:fixP(roundTick(M*(1-sp),m),m)});};
+  const pick=id=>{setOpen(null);if(id===draft.market)return;const nm=MK[id],nM=marks[id];set({market:id,target:fixP(roundTick(nM*(draft.target/M),nm),nm),stop:fixP(roundTick(nM*(draft.stop/M),nm),nm)});};
+  // plain-language versions of the calculator's errors
+  const E=calc.errors;const needsFunds=!E.target&&!E.goal&&!E.stop&&!E.lev&&(E.budget||calc.shortfall>0);
+  const err=conflict?`You’re already ${ex.side} ${m.id}. Close it before going ${draft.side}.`
+    :E.target?(d>0?`Pick a target above today’s price (${fmtP(M,m)}).`:`Pick a target below today’s price (${fmtP(M,m)}).`)
+    :E.goal?(draft.goal<.01?'Enter a goal of at least $0.01.':'That goal is too big for this target. Lower the goal or move the target further.')
+    :E.stop?(calc.sLo>calc.sHi?'There’s no safe stop at this leverage. Lower the leverage.':`Set the stop between ${fmtP(calc.sLo,m)} and ${fmtP(calc.sHi,m)}.`)
+    :E.lev?E.lev
+    :needsFunds?`This needs ${fmtUsd(calc.required)} to open. Lower the goal or add funds.`:null;
+  const fix=conflict?{t:`Show my ${m.id} position`,f:()=>setSel(draft.market)}:E.target?{t:`Switch to ${d>0?'falls':'rises'}`,f:flip}:E.stop&&calc.sLo<=calc.sHi?{t:'Fix the stop',f:()=>set({stop:fixP(roundTick(clamp(draft.stop,calc.sLo,calc.sHi),m),m)})}:needsFunds?{t:'Add funds',f:()=>px.fund(calc.required-free)}:null;
+  const canReview=calc.ok&&!conflict&&(!authed||calc.shortfall<=0);
+  const startReview=()=>{if(!canReview)return;setOpen(null);setReview({...calc,draft:{...draft}});setQAt(Date.now());setAck(false);};
+  const age=busyOpen?0:(now-qAt)/1000;const stale=review&&!busyOpen&&age>=QUOTE_LIFE;useEffect(()=>{if(stale)setAck(false);},[stale]);
+  const market=pos?pos.market:draft.market;const pm=MK[market];const pM=marks[market];const live=pos?pnlNow(pos,pM):null;
+  const pliq=pos?liqPrice(pos.side,pos.E,pos.q,pos.C,pm.mmr,pos.F):null;
+  const lv=pos?{side:pos.side,T:dragV&&dragV.k==='T'?dragV.v:(pos.tp.status==='changing'?pos.tp.next:pos.tp.price),S:dragV&&dragV.k==='S'?dragV.v:(pos.sl.status==='changing'?pos.sl.next:pos.sl.price),E:pos.E,liq:pliq,q:pos.q}
+    :{side:draft.side,T:draft.target,S:draft.stop,E:calc.E||M,liq:calc.liq,q:calc.q||0};
+  const F=frozen||{M,E:calc.E||M,sLo:calc.sLo,sHi:calc.sHi};
+  const tDom=d>0?{lo:+(((Math.max(F.E,F.M)+m.tick)/F.M-1)*100).toFixed(1),hi:100}:{lo:-90,hi:+(((Math.min(F.E,F.M)-m.tick)/F.M-1)*100).toFixed(1)};
+  const tPct=+((draft.target/F.M-1)*100).toFixed(1);
+  const sOK=F.sLo!=null&&F.sLo<=F.sHi;const sDom=sOK?{lo:+((F.sLo/F.M-1)*100).toFixed(1),hi:+((F.sHi/F.M-1)*100).toFixed(1)}:null;
+  const tk=(k,cls,label,content,extra)=>html`<button className=${'tk '+cls+(open===k?' on':'')+(extra||'')} aria-expanded=${open===k} aria-haspopup="dialog" onClick=${e=>tog(k,e)} aria-label=${label}>${content}<svg className="chev" viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>`;
+  const headH=useRef(200);useLayoutEffect(()=>{if(headEl.current)headH.current=headEl.current.getBoundingClientRect().bottom;});
+  const positions=Object.values(bk.book);const totalNet=positions.reduce((s,p)=>{const x=pnlNow(p,marks[p.market]);return s+x.net+p.F;},0);
+  const amendReq=(p,which,v)=>({title:`Move ${which==='tp'?'take profit':'stop'} on ${p.market}`,fn:'amendOrder',tap:true,rows:[[which==='tp'?'Take profit':'Stop',`${fmtP(p[which].price,MK[p.market])} → ${fmtP(v,MK[p.market])}`],['Position',`${fmtQ(p.q,MK[p.market])} ${p.market} ${p.side}`]]});
+  // one-line sentence on wide screens: shrink the type until it fits (only re-measured when the words change)
+  const fitKey=(pos?['p',pos.market,pos.side,pos.q,pos.goal,pos.tp.price,pos.sl.price]:['c',draft.goal,draft.market,draft.side,draft.target,draft.stop]).join('|');
+  useLayoutEffect(()=>{const el=sentRef.current;if(!el)return;if(vw<1360){el.style.fontSize='';return;}const rg=document.createRange();rg.selectNodeContents(el);const fits=()=>rg.getBoundingClientRect().width<=el.clientWidth*.96;
+    el.style.fontSize='40px';if(fits())return;let lo=22,hi=40;while(hi-lo>.5){const mid=(lo+hi)/2;el.style.fontSize=mid+'px';if(fits())lo=mid;else hi=mid;}el.style.fontSize=lo+'px';},[fitKey,vw]);
+  // staged order edits for an open position (sentence route)
+  const posPop=(which)=>{const p=pos;const cur=p[which].price;const v=stage[which]??cur;const dd=p.side==='long'?1:-1;const lo=which==='tp'?(dd>0?0:-60):(dd>0?-40:0),hi=which==='tp'?(dd>0?100:0):(dd>0?0:40);
+    const val=clamp(+((v/pM-1)*100).toFixed(1),lo,hi);const immediate=which==='tp'?dd*(v-pM)<=0:dd*(v-pM)>=0;const liqBad=which==='sl'&&dd*(v-(pliq+dd*stopBuffer(pm,pM)))<0;
+    return html`<${EditPop} anchor=${anchor} onClose=${()=>{setOpen(null);setStage({});}} label=${which==='tp'?'Change take profit':'Change stop'}><h4>${which==='tp'?'Take profit':'Stop'} · current ${fmtP(cur,pm)}</h4>
+      <${NumIn} value=${v} label="Trigger price" dp=${pm.dp} onPreview=${x=>setStage(s=>({...s,[which]:x}))} onCommit=${x=>setStage(s=>({...s,[which]:fixP(roundTick(x,pm),pm)}))}/>
+      <${Slider} value=${val} min=${lo} max=${hi} step=${.1} color=${which==='tp'?'var(--mint)':'var(--coral)'} label="Distance from today’s price" valuetext=${fmtPct(val)} badge=${fmtPct(val)} onChange=${x=>setStage(s=>({...s,[which]:fixP(roundTick(pM*(1+x/100),pm),pm)}))}/>
+      <div className="ep-foot"><span><b>${fmtQ(p.q,pm)} ${pm.id}</b>position size</span><span><b className=${dd*(v-p.E)>=0?'g':'r'}>${fmtUsd(dd*p.q*(v-p.E),2,true)}</b>${dd*(v-p.E)>=0?'you’d make':'you’d lose'}</span><span><b>${fmtP(pliq,pm)}</b>liquidation</span></div>
+      ${immediate&&html`<p className="ep-note" style=${{color:'var(--warn)'}}>${pm.id} is already past this price, so it would close right away.</p>`}
+      ${liqBad&&html`<p className="ep-note" style=${{color:'var(--loss)'}}>Too close to liquidation. Keep the stop at least ${fmtUsd(stopBuffer(pm,pM))} away, or add collateral.</p>`}
+      <button className="big" style=${{marginTop:'10px'}} aria-disabled=${v===cur||liqBad} onClick=${async()=>{if(v!==cur&&!liqBad){setOpen(null);setStage({});if(await gate(amendReq(p,which,v)))bk.amend(p.market,which,v);}}}>Save change</button><//>`;};
+  return html`<div className="app">
+    <header className="top"><span className="brand">perpl<b>.</b></span>
+      <span className="topr"><button className="modebtn" onClick=${()=>setMode(mode==='day'?'night':'day')} aria-label=${mode==='day'?'Switch to night':'Switch to day'}>${mode==='day'?Moon:Sun}</button>
+        ${authed?html`<button className="bal" onClick=${()=>setSheet({k:'account'})} aria-label="Account">${px.tapOn()&&html`<span className="zap" title="One-tap trading on">${Bolt}</span>`}<${Odo} text=${fmtUsd(bk.ledger.free)}/><small>AUSD</small><span className="av" aria-hidden="true">${(px.user.label||'?')[0].toUpperCase()}</span></button>`
+          :html`<button className="login" onClick=${()=>px.login()}>Log in</button>`}</span></header>
+
+    <div className="head" data-testid="sentence-area" ref=${headEl}>
+      ${pos?html`<p className="sentence" ref=${sentRef} aria-live="polite">You’re ${html`<span className="tk coral static">${pos.side}</span>`} ${fmtQ(pos.q,pm)} <span className="tk lav static">${pm.id}</span>, ${live.gross>=0?'up':'down'} <span className=${'tk static '+(live.gross>=0?'mint':'coral')}><${Odo} text=${fmtUsd(Math.abs(live.gross))}/></span> on a <span className="tk gold static">${fmtShort(pos.goal)}</span> goal.
+          Take profit at ${tk('tp','mint','Take profit '+fmtP(lv.T,pm),html`${fmtP(lv.T,pm).replace(/\.0+$/,'')}${pos.tp.status==='changing'?html`<em className="pc">saving…</em>`:''}`)}<span className="tail">, stop at </span>${tk('sl','stop','Stop '+fmtP(lv.S,pm),html`${fmtP(lv.S,pm).replace(/\.0+$/,'')}${pos.sl.status==='changing'?html`<em className="pc">saving…</em>`:''}`)}.</p>
+          <p className="sub">${pos.status==='closing'?'Closing…':pos.status==='margin'?'Updating collateral…':pos.merged?'Trades on the same market combine into one position. ':''}Tap a price or drag its line to change it. <button className="back" onClick=${()=>{setSel('new');setOpen(null);}}>Back to new trade</button></p>`
+      :html`<p className="sentence" ref=${sentRef}>I want to make ${tk('goal','gold','Profit goal '+fmtShort(draft.goal),html`<${Odo} text=${fmtShort(draft.goal)}/>`,calc.errors.goal?' bad':'')} if ${tk('market','lav','Market '+m.name,m.id)}
+          <button className="tk coral" onClick=${flip} aria-label=${'Direction '+(d>0?'long, change to short':'short, change to long')}><svg className="ar" viewBox="0 0 12 12" aria-hidden="true">${d>0?html`<path d="M2 9.5L9.5 2M4 2h5.5v5.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`:html`<path d="M2 2.5L9.5 10M4 10h5.5V4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`}</svg>${d>0?'rises':'falls'} to</button>
+          ${tk('target','mint','Target '+fmtP(draft.target,m),html`${fmtP(draft.target,m).replace(/\.0+$/,'')}<em className="pc">${fmtPct((draft.target/M-1)*100)}</em>`,calc.errors.target?' bad':'')}<span className="tail">, stop at </span>${tk('stop','stop','Stop '+fmtP(draft.stop,m),fmtP(draft.stop,m).replace(/\.0+$/,''),calc.errors.stop?' bad':'')}.</p>
+        ${err?html`<div className="msg" role="status"><span>${err}</span>${fix&&html`<button onClick=${fix.f}>${fix.t}</button>`}</div>`
+          :adding?html`<p className="sub add">You already hold ${fmtQ(ex.q,m)} ${m.id} ${ex.side}. This adds to it.</p>`
+          :html`<p className="sub">Tap any word to change it. Amounts are before fees.</p>`}`}
+    </div>
+
+    ${html`<div className="rail" data-testid="positions-row" role="tablist" aria-label="Your positions">
+      ${positions.map(p=>{const x=pnlNow(p,marks[p.market]);const mm=MK[p.market];const L=p.side==='long'?p.sl.price:p.tp.price,R=p.side==='long'?p.tp.price:p.sl.price;const at=clamp((marks[p.market]-L)/(R-L),0,1);
+        return html`<button key=${p.market} role="tab" aria-selected=${sel===p.market} className="pchip" onClick=${()=>{setSel(sel===p.market?'new':p.market);setOpen(null);setReview(null);}}>
+          <span className="pc-t"><b>${mm.id}</b><span className=${'side '+p.side}>${p.side==='long'?'↗ long':'↘ short'}</span></span>
+          <span className=${'pc-v '+(x.gross>=0?'g':'r')}><${Odo} text=${fmtUsd(x.gross,2,true)}/></span>
+          <span className="pc-bar" aria-hidden="true"><i style=${{left:at*100+'%'}}></i></span>
+          ${p.sl.status!=='registered'&&p.status==='active'&&html`<span className="pc-warn">protecting…</span>`}</button>`;})}
+      
+      ${bk.result&&!bk.book[bk.result.market]&&(()=>{const r=bk.result;const rm=MK[r.market];
+        const title={tp:'Take profit hit',sl:'Stop hit',liq:'Liquidated',manual:'Position closed'}[r.reason];
+        const sub=r.reason==='liq'?`${fmtUsd(r.ret)} returned to you`:`${r.market} ${r.side} closed at ${fmtP(r.exit,rm).replace(/\.0+$/,'')} · after fees`;
+        return html`<div className=${'pchip result '+(r.net>=0?'win':'loss')} role="status">
+          <span className="rs-t"><b>${title}</b><span>${sub}</span></span>
+          <span className=${'rs-v '+(r.net>=0?'g':'r')}>${fmtUsd(r.net,2,true)}</span>
+          <span className="rs-a"><button onClick=${()=>setSheet({k:'account'})}>History</button><button aria-label="Dismiss" onClick=${bk.clearResult}>×</button></span></div>`;})()}
+      ${positions.length===0&&!bk.result&&(authed?html`<span className="rail-empty">No active positions. Your positions will sit here.</span>`
+        :html`<button className="rail-empty login-hint" onClick=${()=>px.login()}>Log in to view your active positions</button>`)}
+      ${positions.length>0&&html`<span className="rail-sum">${positions.length} open · <b className=${totalNet>=0?'g':'r'}>${fmtUsd(totalNet,2,true)}</b></span>`}
+    </div>`}
+
+    <div className="chartbox" data-testid="chart"><div className="ctools">
+        <div className="tfs" role="group" aria-label="Chart range">${Object.keys(TF).map(k=>html`<button key=${k} aria-pressed=${tf===k} onClick=${()=>setTf(k)}>${k==='live'?html`<i className="dot"></i>Live`:TF[k].label}</button>`)}</div>
+        ${tf!=='live'&&html`<span className=${'tfchg '+(tfChange(market,tf)>=0?'g':'r')}>${pm.id} ${fmtPct(tfChange(market,tf))} <small>${tf==='1H'?'past hour':tf==='1D'?'24h':'7 days'}</small></span>`}
+        ${pos&&html`<div className=${'simdock'+(demo?' open':'')} aria-label="Demo: move the price"><button className="dtog" aria-expanded=${demo} onClick=${()=>setDemo(!demo)}>Demo<span>: move price</span></button><span className="dbtns"><button onClick=${()=>bk.nudge(market,-.01)}>−1%</button><button onClick=${()=>bk.nudge(market,.01)}>+1%</button><button onClick=${()=>bk.nudge(market,'tp')}>Hit take profit</button><button onClick=${()=>bk.nudge(market,'sl')}>Hit stop</button></span></div>`}</div><${LiveChart} tf=${tf} market=${market} mark=${pM} lv=${lv} pos=${pos} T=${TH} layout=${(W,H)=>LAYOUT(W,H)} pnlAxis=${true}
+      onTarget=${(v,drag)=>drag?setDragV({k:'T',v}):set({target:v})} onStop=${(v,drag)=>drag?setDragV({k:'S',v}):set({stop:v})} onAmend=${(k,v,y)=>{setDragV(null);setAmend({k,v,y,mk:market});}}/></div>
+
+    ${!pos&&open==='goal'&&anchor&&html`<${EditPop} anchor=${anchor} onClose=${()=>setOpen(null)} label="Profit goal"><h4>How much do you want to make?</h4>
+      <${NumIn} value=${draft.goal} label="Profit goal" onPreview=${v=>set({goal:Math.round(v*100)/100})} onCommit=${v=>set({goal:Math.max(1,Math.round(v*100)/100)})}/>
+      <${Slider} value=${clamp(Math.round(draft.goal),1,Math.max(2,Math.floor(calc.gMax||1)))} min=${1} max=${Math.max(2,Math.floor(calc.gMax||1))} step=${1} color="var(--gold)" label="Profit goal" valuetext=${fmtShort(draft.goal)} onChange=${v=>set({goal:v})}/>
+      <div className="ep-foot"><span><b>$1</b>min</span><span><b>${calc.required!=null?fmtUsd(calc.required):'—'}</b>collateral</span><span>${authed?html`<b>${fmtShort(Math.floor(calc.gMax||0))}</b>most with your funds`:''}</span></div><//>`}
+    ${!pos&&open==='market'&&anchor&&html`<${EditPop} anchor=${anchor} onClose=${()=>setOpen(null)} label="Market"><h4>Choose a market</h4>
+      ${['ETH','BTC'].map(id=>html`<button key=${id} className="mrow" role="option" aria-selected=${draft.market===id} onClick=${()=>pick(id)}><b>${id}</b><span>${fmtP(marks[id],MK[id])}${bk.book[id]?html` · <em>you’re ${bk.book[id].side}</em>`:''}</span><span className=${MK[id].chg>=0?'g':'r'}>${fmtPct(MK[id].chg)}</span></button>`)}<//>`}
+    ${!pos&&open==='target'&&anchor&&html`<${EditPop} anchor=${anchor} onClose=${()=>{setOpen(null);setFrozen(null);}} label="Target price"><h4>${m.id} is ${fmtP(F.M,m)} now</h4>
+      <${NumIn} value=${draft.target} label="Target price" dp=${m.dp} onPreview=${v=>set({target:v})} onCommit=${v=>set({target:fixP(roundTick(v,m),m)})}/>
+      <${Slider} value=${clamp(tPct,tDom.lo,Math.max(tDom.hi,tPct))} min=${tDom.lo} max=${Math.max(tDom.hi,tPct)} step=${.1} color="var(--mint)" label="Distance from today’s price" valuetext=${fmtPct(tPct)} badge=${fmtPct(tPct)} onChange=${v=>set({target:fixP(roundTick(F.M*(1+v/100),m),m)})}/>
+      <div className="ep-foot"><span><b>${fmtPct(tDom.lo)}</b>lowest</span><span><b className="g">${calc.q?fmtUsd(calc.netT,2,true):'—'}</b>you’d make, after fees</span><span><b>${fmtPct(Math.max(tDom.hi,tPct))}</b>highest</span></div>
+      <//>`}
+    ${!pos&&open==='stop'&&anchor&&html`<${EditPop} anchor=${anchor} onClose=${()=>{setOpen(null);setFrozen(null);}} label="Stop price"><h4>Stop loss</h4>
+      <${NumIn} value=${draft.stop} label="Stop price" dp=${m.dp} onPreview=${v=>set({stop:v})} onCommit=${v=>set({stop:fixP(roundTick(v,m),m)})}/>
+      ${sOK?html`<${Slider} value=${clamp(+((draft.stop/F.M-1)*100).toFixed(1),sDom.lo,sDom.hi)} min=${sDom.lo} max=${sDom.hi} step=${.1} color="var(--coral)" label="Distance from today’s price" valuetext=${fmtPct((draft.stop/F.M-1)*100)} badge=${fmtPct((draft.stop/F.M-1)*100)} onChange=${v=>set({stop:fixP(roundTick(F.M*(1+v/100),m),m)})}/>`:html`<p className="ep-note">There’s no safe stop at this leverage. Lower the leverage.</p>`}
+      <div className="ep-foot"><span><b>${sOK?fmtP(F.sLo,m):'—'}</b>${d>0?'lowest safe stop':'closest'}</span><span><b className="r">${calc.netS!=null?fmtUsd(calc.netS):'—'}</b>you’d lose</span><span><b>${sOK?fmtP(F.sHi,m):'—'}</b>${d>0?'closest':'highest safe stop'}</span></div>
+      <p className="ep-note">Closes at market when ${m.id} hits this price. The fill can be a little ${d>0?'lower':'higher'}.</p><//>`}
+    ${pos&&(open==='tp'||open==='sl')&&anchor&&posPop(open)}
+
+    <div className="bar" data-testid="bottom-bar" role="toolbar" aria-label=${pos?'Position controls':'Trade summary'}>
+      ${pos?html`
+        <div className="seg"><small>Position</small><b>${fmtQ(pos.q,pm)} ${pm.id}</b><small>${pos.side==='long'?'bought':'sold'} at ${fmtP(pos.E,pm)}</small></div><span className="vsep"></span>
+        <button className="seg act" onClick=${()=>setSheet({k:'margin'})} aria-label="Add collateral"><small><${Tip} text=${GLOSS.collateral}>Collateral<//></small><b>${fmtUsd(pos.C)} <span className="mini">±</span></b><small>${(pos.E*pos.q/pos.C).toFixed(1)}x leverage</small></button><span className="vsep"></span>
+        <div className="seg"><small><${Tip} text=${GLOSS.liq}>Liquidation<//></small><b>${fmtP(pliq,pm)}</b><small>${Math.abs((pliq/pM-1)*100).toFixed(0)}% away</small></div><span className="vsep hide-m"></span>
+        <div className="seg hide-m"><small><${Tip} text=${GLOSS.funding}>Funding<//></small><b className=${pos.F>=0?'g':'r'}>${fmtUsd(pos.F,2,true)}</b><small>${pm.fund>0===(pos.side==='long')?'you pay':'you get'} ${perHour(Math.abs(pm.fund)*pM*pos.q)}</small></div><span className="vsep hide-m"></span>
+        <div className="seg hide-m"><small>If you close now</small><b className=${live.net+pos.F>=0?'g':'r'}><${Odo} text=${fmtUsd(live.net+pos.F,2,true)}/></b><small>after fees</small></div>
+        <button className="cta red" onClick=${()=>setSheet({k:'close'})} aria-disabled=${pos.status!=='active'}>Close</button>`
+      :html`
+        <div className="seg"><small>${d>0?'Long':'Short'}</small><b>${calc.q?fmtQ(calc.q,m)+' '+m.id:'—'}</b></div><span className="vsep"></span>
+        <div className="seg"><small><${Tip} text=${GLOSS.collateral}>Collateral<//></small><b><${Odo} text=${calc.required!=null?fmtUsd(calc.required):'—'}/></b></div><span className="vsep"></span>
+        <div className="seg"><small><${Tip} text=${GLOSS.lev}>Leverage<//></small><span className="step"><button aria-label="Lower leverage" onClick=${()=>set({lev:Math.max(1,+(draft.lev-.5).toFixed(2))})}>−</button><b style=${{minWidth:'44px',textAlign:'center'}}>${draft.lev.toFixed(1)}x</b><button aria-label="Raise leverage" onClick=${()=>set({lev:Math.min(5,+(draft.lev+.5).toFixed(2))})}>+</button></span></div><span className="vsep hide-m"></span>
+        <div className="seg hide-m"><small><${Tip} text=${GLOSS.liq}>Liquidation<//></small><b>${calc.liq?fmtP(calc.liq,m):'—'}</b></div><span className="vsep hide-m"></span>
+        <div className="seg hide-m"><small>If stopped</small><b className="r">${calc.netS!=null?fmtUsd(calc.netS):'—'}</b></div>
+        <button className="cta" aria-disabled=${!canReview} onClick=${startReview}>${adding?'Review add':'Review'}</button>`}
+    </div>
+
+    ${amend&&pos&&html`<div className="confirm" style=${{top:clamp(amend.y,80,innerHeight-80)+'px'}} role="dialog" aria-label="Confirm order change">
+      Move ${amend.k==='tp'?'take profit':'stop'} to <b>${fmtP(amend.v,pm)}</b>?<button className="ghost solid" onClick=${async()=>{const a=amend;setAmend(null);if(await gate(amendReq(pos,a.k,a.v)))bk.amend(a.mk,a.k,a.v);}}>Save</button><button className="ghost" onClick=${()=>setAmend(null)}>Cancel</button></div>`}
+
+    ${review&&html`<aside className="drawer" role="dialog" aria-modal="true" aria-labelledby="rv-h" onKeyDown=${e=>{if(e.key==='Escape'&&!bk.steps)setReview(null);}}>
+      <div className="dh"><h2 id="rv-h" tabIndex="-1" ref=${drawerH}>${adding?'Add to your position':'Your trade plan'}</h2>
+        ${stale?html`<button className="ghost" onClick=${startReview}>Prices moved · Refresh</button>`:html`<span className="fresh"><svg viewBox="0 0 20 20"><circle className="t" cx="10" cy="10" r="8"/><circle className="p" cx="10" cy="10" r="8" strokeDasharray="50.27" strokeDashoffset=${50.27*(age/QUOTE_LIFE)}/></svg>${Math.max(0,Math.ceil(QUOTE_LIFE-age))}s</span>`}</div>
+      <p className="re">Make <span className="c-gold">${fmtShort(review.draft.goal)}</span> if <span className="c-lav">${m.id}</span> ${d>0?'rises':'falls'} to <span className="c-mint">${fmtP(review.draft.target,m)}</span>, stop at <span className="c-coral">${fmtP(review.draft.stop,m)}</span>.</p>
+      ${adding&&html`<p className="ep-note" style=${{margin:0}}>Perpl combines this with your ${fmtQ(ex.q,m)} ${m.id} ${ex.side}. The new take profit and stop apply to the whole position.</p>`}
+      <div className="rows">
+        <div className="r"><span className="k">${d>0?'You buy':'You sell'}</span><span className="v">${fmtQ(review.q,m)} ${m.id}<small>at about ${fmtP(review.E,m)}</small></span></div>
+        <div className="r"><span className="k">Collateral</span><span className="v">${fmtUsd(review.required)}<small>${review.draft.lev.toFixed(1)}x leverage</small></span></div>
+        <div className="r"><span className="k">If ${m.id} hits ${fmtP(review.draft.target,m).replace(/\.0+$/,'')}</span><span className="v g">${fmtUsd(review.netT,2,true)}<small>after fees</small></span></div>
+        <div className="r"><span className="k">If stopped</span><span className="v r">${fmtUsd(review.netS)}<small>can be a bit worse in fast markets</small></span></div>
+        <div className="r"><span className="k">Liquidation</span><span className="v">${fmtP(review.liq,m)}<small>${Math.abs((review.liq/review.M-1)*100).toFixed(0)}% ${d>0?'below':'above'} today’s price</small></span></div>
+      </div>
+      <details className="more"><summary>Details</summary><div className="rows">
+        <div className="r"><span className="k">Position size</span><span className="v">${fmtUsd(review.notional)}</span></div>
+        <div className="r"><span className="k">Worst entry price</span><span className="v">${fmtP(review.bound,m)}<small>the order won’t fill beyond this</small></span></div>
+        <div className="r"><span className="k">Fee to open</span><span className="v">${fmtUsd(review.entryFee)}</span></div>
+        <div className="r"><span className="k">Funding</span><span className="v">${m.fund>0===(d>0)?'you pay':'you get'} ${perHour(Math.abs(m.fund)*review.M*review.q)}</span></div>
+      </div></details>
+      ${bk.steps?html`<div className="steps" role="status">${bk.steps.map((s,i)=>html`<div key=${i} className=${'st '+s.st}><i>${s.st==='done'?'✓':''}</i>${s.label}</div>`)}</div>`:html`
+        <label className="ack"><input type="checkbox" checked=${ack} onChange=${e=>setAck(e.target.checked)}/><span className="box"><svg viewBox="0 0 12 10"><path d="M1 5l3.5 3.5L11 1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span>I understand I could lose up to my collateral.</span></label>
+        <button className="big" aria-disabled=${!ack||stale||busyOpen} onClick=${async()=>{if(!ack||stale||busyOpen)return;const rv=review;const mk=rv.draft.market;setBusyOpen(true);
+          const ok=await gate({title:`${adding?'Add to':'Open'} ${mk} ${rv.draft.side}`,desc:`Make ${fmtShort(rv.draft.goal)} if ${mk} ${rv.draft.side==='long'?'rises':'falls'} to ${fmtP(rv.draft.target,MK[mk])}.`,fn:'execOrder + TP/SL',tap:true,amt:rv.required,
+            rows:[['Size',`${fmtQ(rv.q,MK[mk])} ${mk}`],['Collateral',fmtUsd(rv.required)],['Take profit · stop',`${fmtP(rv.draft.target,MK[mk])} · ${fmtP(rv.draft.stop,MK[mk])}`]]},rv.required+rv.entryFee);
+          setBusyOpen(false);setQAt(Date.now());if(!ok)return;await bk.open(rv.draft,rv);setReview(null);setSel(mk);}}>${!authed?'Log in and open':adding?'Add to position':'Open position'}</button>
+        ${!authed&&html`<p className="ep-note" style=${{margin:0,textAlign:'center'}}>Log in with email, Google or a wallet. New accounts get a Monad wallet automatically.</p>`}
+        <button className="ghost" onClick=${()=>setReview(null)}>Back to the chart</button>`}
+    </aside>`}
+
+    ${sheet&&sheet.k==='margin'&&pos&&html`<${CollateralSheet} p=${pos} M=${pM} free=${bk.ledger.free} onDo=${async a=>{const p=pos;if(await gate({title:`${a>=0?'Add':'Remove'} ${fmtUsd(Math.abs(a))} collateral`,desc:`${p.market} ${p.side}`,fn:a>=0?'increasePositionCollateral':'decreasePositionCollateral',tap:true,amt:Math.max(0,a),rows:[['Collateral',`${fmtUsd(p.C)} → ${fmtUsd(p.C+a)}`]]}))bk.margin(p.market,a);}} onClose=${()=>setSheet(null)}/>`}
+    ${sheet&&sheet.k==='close'&&pos&&html`<${CloseSheet} p=${pos} M=${pM} onDo=${async f=>{const p=pos;if(await gate({title:`Close ${f>=1?'':Math.round(f*100)+'% of '}${p.market} ${p.side}`,desc:'Closes at the current market price.',fn:'execOrder (reduce-only)',tap:true,rows:[['Quantity',`${fmtQ(f>=1?p.q:p.q*f,MK[p.market])} ${p.market}`]]}))bk.close(p.market,f);}} onClose=${()=>setSheet(null)}/>`}
+    ${sheet&&sheet.k==='account'&&authed&&html`<${AccountSheet} bk=${bk} marks=${marks} px=${px} gate=${gate} openTap=${()=>setSheet(null)||setTapOffer(true)} onClose=${()=>setSheet(null)}/>`}
+    ${tapOffer&&html`<${OneTapSheet} px=${px} toast=${bk.toast} onClose=${()=>setTapOffer(false)}/>`}
+    ${tapBanner&&!tapOffer&&!sheet&&!review&&!px.modal&&!px.tapOn()&&html`<div className="tapban" role="status"><span className="bolt">${Bolt}</span><span>Trade without the pop-up for 24 hours?<small>Only on Perpl, up to $1,000 per trade.</small></span><button className="ghost solid" onClick=${()=>{setTapBanner(false);setTapOffer(true);}}>Turn on</button><button className="x" aria-label="Not now" onClick=${()=>setTapBanner(false)}>×</button></div>`}
+    <${PrivyLayer} px=${px} onCredit=${bk.credit}/>
+    <div className="toasts" aria-live="polite" hidden=${!!(sheet||review||px.modal||tapOffer||tapBanner)}>${bk.toasts.map(t=>html`<div key=${t.id} className=${'toast '+t.kind}>${t.t}</div>`)}</div>
+  </div>`;
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(html`<${App}/>`);
+})();
+</script>
+
+</body></html>
