@@ -1,0 +1,17 @@
+node_modules/
+dist/
+.DS_Store
+playwright-report/
+test-results/
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+*.log
+
+# Browser run output
+verification/*
+!verification/shots/
+verification/shots/*
+!verification/shots/newuser-long2.png
+!verification/shots/tp-fire.png
