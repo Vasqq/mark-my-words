@@ -15,3 +15,4 @@ verification/*
 verification/shots/*
 !verification/shots/newuser-long2.png
 !verification/shots/tp-fire.png
+!verification/shots/composer-live.png

@@ -20,9 +20,9 @@ Write your call as one sentence and Mark My Words opens it as a real perp on **M
 
 <br>
 
-<img src="verification/shots/newuser-long2.png" alt="A live ETH long on Monad testnet with its take profit and stop loss registered on Perpl" width="900">
+<img src="verification/shots/composer-live.png" alt="Mark My Words composer: a one-sentence ETH long with its target and stop on a live Perpl chart" width="900">
 
-<sub>A real ETH long on Monad testnet, opened by a brand-new email user. The take profit and stop are live orders on Perpl.</sub>
+<sub>The live app on Monad testnet: one sentence sets the goal, target and stop, priced from Perpl's live order book.</sub>
 
 </div>
 
