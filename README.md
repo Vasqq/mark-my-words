@@ -244,7 +244,7 @@ Next we make trading social. You follow traders whose calls you trust, read why 
 
 | Deliverable                                                                                                                                                             | Success metric                                                                                       |
 | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| Public testnet deployment, with a simple public page for each trader showing their open trades                                                                          | Live URL, and 50 wallets complete a full journey from open to close                                  |
+| Public testnet beta, with a simple public page for each trader showing their open trades                                                                                | 50 wallets complete a full journey from open to close                                                |
 | "Copy this trade": one tap on someone else's position opens the same trade in your account, at your own size and with your own required stop. You review and confirm it | Copied trades go through the same review, reconciliation and duplicate-send checks as normal entries |
 | UI and performance overhaul                                                                                                                                             | Time from fill to both exits placed cut by at least half (about 35 s in our testnet runs)            |
 | Hackathon-era bugs and the issues beta users report                                                                                                                     | Every issue triaged within a week, and the fixes published in a public changelog                     |
@@ -281,7 +281,6 @@ Before choosing a revenue model, I'll ask Perpl whether a builder or referral fe
 - An introduction to a security reviewer, and a grant or subsidy toward the audit.
 - Help with Perpl mainnet API access, origin approval and a higher API-key allowance.
 - Enough testnet MON and AUSD from the faucets to onboard beta testers.
-- A spot in an ecosystem newsletter or demo day once the public testnet is live.
 - A direct line to the Perpl and Privy teams for integration feedback.
 
 ## Hackathon
