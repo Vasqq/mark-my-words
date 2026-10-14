@@ -7,8 +7,7 @@
 
 ### Say the trade. Place the trade.
 
-Write what you think the market will do in one sentence.<br>
-Mark My Words opens it as a real perp on **Monad testnet**, with the stop loss already placed.
+Write your call as one sentence and Mark My Words opens it as a real perp on **Monad testnet** through Perpl, through an interface anyone can use.
 
 [![Monad testnet](https://img.shields.io/badge/Monad-testnet%2010143-836EF9)](https://testnet.monadexplorer.com)
 [![Perpl](https://img.shields.io/badge/Perpl-perps%20exchange-141210)](https://testnet.perpl.xyz)
@@ -17,7 +16,7 @@ Mark My Words opens it as a real perp on **Monad testnet**, with the stop loss a
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](tsconfig.json)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
 
-[Try it](#try-it) · [How it works](#how-a-sentence-becomes-a-trade) · [Onchain proof](#onchain-proof) · [Run locally](#run-it-locally) · [Architecture](#architecture) · [Roadmap](#roadmap)
+[Demo video](https://www.youtube.com/watch?v=YoIrEk600Bg) · [Pitch video](https://www.youtube.com/watch?v=BAn_P6IdQqY) · [Try it](#for-judges-try-it-in-10-minutes) · [How it works](#how-a-sentence-becomes-a-trade) · [Onchain proof](#onchain-proof) · [Run locally](#run-it-locally) · [Architecture](#architecture) · [Roadmap](#roadmap)
 
 <br>
 
@@ -33,13 +32,11 @@ Mark My Words opens it as a real perp on **Monad testnet**, with the stop loss a
 
 ## Who it's for
 
-Our first users are people who already post price calls but have never opened a perp. They write "ETH to 2,620 this week" in a group chat, then a perps terminal asks them for size, margin mode and trigger types before they can say what they mean. Here every blank in the sentence is an editable chip, every number on screen comes from Perpl or the chain, and you can't open a position without a stop.
+Plenty of people have a take on where ETH is heading. Very few of them have ever opened a perp, usually because the first screen asks for size, margin mode, leverage and trigger types before they can say what they think will happen. I built Mark My Words to make trading something an everyday person can understand, and actually enjoy.
 
-Perps venues build pro terminals that start from size and leverage, and the simplified apps we've seen tend to hide the risk. We start from the trader's view and make the stop mandatory. That needs fast, cheap settlement: the app sizes the trade across live book depth, waits for the fill, then places both exits before it shows success. With Monad's 300 ms blocks and 600 ms finality, the stop and target are on the book a few seconds after the fill.
+My first user is the person who already posts price calls in a group chat or on X and has never placed a perp. Perps venues build terminals for professionals, starting from size and leverage, and the simpler apps I've seen tend to hide the risk. I haven't found one that starts from the trader's own words and makes the stop mandatory.
 
-So far on testnet we've run about 40 real Perpl actions across 2 accounts. That includes a brand-new email user going from login to a closed trade alone, ETH and BTC in both directions, opens at 12x and 15x, and a take profit and a stop loss that Perpl fired on its own. Selected transactions are listed under [Onchain proof](#onchain-proof).
-
-**Go-to-market.** Traders bring their followers. A user writes a call, adds a thesis saying why, and the people who follow them get notified and can copy the trade with their own size and stop. We'll seed a public testnet beta through Monad community channels with a hand-picked first cohort and watch each first trade to find where people get stuck. Perpl supplies the order book and liquidity. We handle onboarding: email login, the embedded wallet and one-sentence orders.
+Over Oct 12 and 13 my 2 test accounts logged 27 successful onchain transactions. That covers ETH and BTC, longs and shorts, partial and full closes, two positions open at once, a BTC long at 15x (Perpl's maximum), and a take profit and a stop loss that Perpl fired on its own. Selected transactions are under [Onchain proof](#onchain-proof).
 
 ## What works on testnet
 
@@ -49,7 +46,7 @@ So far on testnet we've run about 40 real Perpl actions across 2 accounts. That 
 | Feature          | What you do                                                     | What happens                                                                                                                 |
 | ---------------- | --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
 | Sentence trading | Set profit goal, market, direction, target and stop in one line | The app sizes it across live Perpl book levels and shows fees, collateral and liquidation before you confirm                 |
-| Login            | Sign in with email through Privy                                | Privy creates an embedded wallet on first login. You don't need an extension or seed phrase                                  |
+| Login            | Sign in with email through Privy                                | After email login, one tap creates an embedded wallet. You don't need an extension or seed phrase                            |
 | Funding          | Claim from the faucet, approve, deposit, withdraw               | Each step is a wallet transaction you review, checked against its receipt                                                    |
 | One-tap session  | Sign once for 24 hours                                          | A trade-only Perpl API key, held by a browser key that page scripts can't read. It cannot withdraw                           |
 | Markets          | Trade ETH or BTC, long or short                                 | Two positions can be open at once, from 1x up to Perpl's maximum (ETH 12x, BTC 15x)                                          |
@@ -117,68 +114,45 @@ Selected transactions from a fresh email user's account, Oct 12 to 13, 2026:
 <br><sub>Perpl fired the take profit. The app found the fill in signed history and showed the result.</sub>
 </div>
 
-## Try it
+## For judges: try it in 10 minutes
 
 **Live app:** [mark-my-words-eu.onrender.com](https://mark-my-words-eu.onrender.com)
 
 > [!CAUTION]
-> **Testnet only, unaudited.** Everything runs on **Monad testnet (chain 10143)** against Perpl's testnet exchange, with free test tokens that have no value. The code has not been audited, so don't use it with real funds.
+> **Testnet only, unaudited.** Everything runs on Monad testnet (chain 10143) with free test tokens. Don't use real funds.
 
-You need an email address and about 5 minutes. You don't need a browser extension, a seed phrase or a network setup, because the app adds chain 10143 for you. The free host sleeps when idle, so the first load can take about a minute.
+You need an email address. No extension, seed phrase or network setup. The free host sleeps when idle, so the first load can take about a minute.
 
 ### 1. Log in
 
-1. Open the live app and press **Log in** (top right).
-2. Enter your email, then the 6-digit code Privy emails you.
-3. On first login the app shows **Set up your Monad wallet**. Press **Create embedded wallet**.
-4. Press your **avatar** (top right) to open the **Account** sheet. Your wallet address is under **Wallet**. Press **copy** next to it.
+1. Open the live app and press **Log in** (top right). Enter your email and the 6-digit code Privy sends you.
+2. Press **Create embedded wallet**.
 
-### 2. Get testnet MON for gas
+### 2. Fund your account
 
-1. Go to [faucet.monad.xyz](https://faucet.monad.xyz), paste the address you copied and request MON. If it shows a verification check, complete it there.
-2. Wait until the MON arrives. Setup takes about 5 wallet transactions, and the app caps each one at **0.05 MON** of gas, so a normal faucet drip is plenty.
+Press your **avatar** (top right), then **Add funds**. It can take a second to open. The sheet tells you which step you're on, and the button to press next is dark. Each step opens a Privy pop-up: press **Approve**, then **All Done**, and wait a few seconds for "confirmed".
 
-### 3. Get test AUSD and fund your Perpl account
+1. **Step 1 of 4: get test MON.** Press **Copy wallet address**, open [faucet.monad.xyz](https://faucet.monad.xyz), paste it and request MON. Come back once it arrives.
+2. **Step 2 of 4: claim test AUSD.** Press **Review test funds**, then **Confirm test AUSD claim in wallet**.
+3. **Step 3 of 4: deposit.** Leave the amount at 100. Press **Review deposit**, then **Confirm approval in wallet**. When that's confirmed, press **Review deposit** again, then **Confirm account creation and deposit in wallet**. Your balance (top right) shows $100.
+4. **Step 4 of 4: allow order forwarding.** Press **Review order forwarding**, then **Confirm order forwarding in wallet**.
+5. The sheet says **You're set up**. Press **Turn on one-tap trading**, then **Review one-tap access**, then **Authorize 24-hour session in wallet**, then **Sign and continue** in Privy. This is a signature, not a transaction.
 
-AUSD is the collateral for your positions. The test AUSD comes from Agora's testnet faucet contract ([`0xd236…ee6C`](https://testnet.monadexplorer.com/address/0xd236c18D274E54FAccC3dd9DDA4b27965a73ee6C)), and the app claims it for you. Each step below is a wallet transaction. The app shows the exact amount and gas ceiling, and you approve it in the Privy pop-up.
+### 3. Open your first trade
 
-In the **Account** sheet, press **Add funds**, then:
+1. Close the sheets. Leave the sentence as it is ($10 goal, ETH rises to the target, stop below). Every colored word is editable, and you can drag the target and stop lines on the chart.
+2. Press **Review**.
+3. **Move fast here:** tick **I understand I could lose up to my collateral.** and press **Open position** within about 5 seconds. Perpl only accepts an order for a few seconds after the price check. If you see "Perpl did not accept the order. Nothing was placed.", press **Refresh account review**, tick the box and press **Open position** straight away.
+4. The app shows **Placing your order**, then the fill, then sets the take profit and stop on Perpl. The sentence changes to "You're long … ETH".
 
-1. **Claim test AUSD.** Press **Review test funds**, then **Confirm test AUSD claim in wallet**. One claim puts **10,000 test AUSD** in your wallet. Your Perpl balance doesn't change yet.
-2. **Approve.** Leave the amount at **100** or type more, up to 10,000. A new Perpl account needs at least **100 AUSD**. Press **Review deposit**, then **Confirm approval in wallet**.
-3. **Deposit.** Press **Review deposit** again, then **Confirm account creation and deposit in wallet**. This creates your Perpl account, and the balance pill at the top shows your AUSD.
-4. **Allow order forwarding.** Press **Review order forwarding**, then **Confirm order forwarding in wallet**. You only do this once. It lets Perpl accept the app's signed orders and places no order itself.
+### 4. Close it
 
-If a step shows "A submitted request is not finality", wait a few seconds for the confirmation before you start the next one.
+Press **Close** (bottom right), then press **Close 0.082 ETH** (or whatever your size is) straight away. The same few-second limit applies; if Perpl rejects it, press **Prices moved · Refresh** and confirm again. Your balance returns to about $100 minus fees.
 
-### 4. Open your first long
-
-The sentence at the top is the order. Every colored chip in it is editable.
-
-1. **Set a small goal.** The default "$500" is too big for a 100 AUSD account. Press the **$500** chip and change it to **$1**. The app sizes the position so you make that amount at your target.
-2. **Pick the market.** Press the **ETH** chip to switch between ETH and BTC.
-3. **Check the direction.** "**↗ rises to**" means a long.
-4. **Set the target and stop.** Press the green target chip and the red **stop at** chip, or drag their lines on the chart. For a long, the target sits above the price and the stop below it. A stop is required.
-5. The bar under the chart shows the size, collateral, leverage (default **3x**, use **−** and **+** to change it), liquidation price and loss if stopped. Press **Review**.
-6. **Turn on one-tap trading (first time only).** In the trade plan, press **Enable account access**, then **Review API access**, then **Authorize 24-hour session in wallet**. This is one signature, not a transaction. It creates a trade-only Perpl key that can't withdraw, and it lasts 24 hours.
-7. Back in **Your trade plan**, check the numbers, tick **I understand I could lose up to my collateral.**, then press **Open position**.
-8. The app shows **Placing your order**, then **Waiting for it to fill**, then **Setting take profit and stop**. When you see **Take profit and stop are set**, both exits are live orders on Perpl. The sentence now reads "You're long … ETH" and a position card appears on the left.
-
-### 5. Open a short
-
-1. On the position card, press **Back to new trade**, or wait until your long is closed.
-2. Press the **↗ rises to** chip once. It flips to "**↘ falls to**", which makes the trade a short, and the target and stop swap sides for you: target below the price, stop above it.
-3. Repeat steps 4.5 and 4.7 above: **Review**, tick the box, **Open position**. Your session is already on, so you don't sign again.
-
-You can hold one ETH and one BTC position at the same time. Leverage goes up to Perpl's maximum: **12x for ETH and 15x for BTC**.
-
-### 6. Manage and close
-
-- **Move an exit.** Drag the take profit or stop chip on the chart. The order is amended on Perpl.
-- **Close.** Press the position card on the left, then press **Close** in the bottom bar to close part or all of it. A close is always reduce-only, so it can't flip you into the other side.
+To try a short, press the **rises to** word: it flips to **falls to**, and the target and stop swap sides. You can hold one ETH and one BTC position at once, up to 12x on ETH and 15x on BTC.
 
 > [!TIP]
-> For a tour without a wallet, open [`/?mode=demo`](https://mark-my-words-eu.onrender.com/?mode=demo). It runs on fixture data and never touches a chain.
+> For a tour without a wallet, open [`/?mode=demo`](https://mark-my-words-eu.onrender.com/?mode=demo). It uses sample data and never touches a chain.
 
 ## Run it locally
 
@@ -300,9 +274,7 @@ Next we make trading social. You follow traders whose calls you trust, read why 
 | Public bug bounty                                                                                                                                                      | Live from mainnet launch                                                                                                                                 |
 | Trading volume                                                                                                                                                         | $1M cumulative notional in the first 90 days of open mainnet                                                                                             |
 
-Perpl runs the order book, so our job is to bring traders. Follows and copy trading are how new traders arrive: each one who joins to copy someone can become a trader others follow.
-
-We'll ask Perpl whether a builder or referral fee is available before we pick a revenue model. We plan to apply to Monad's accelerator and grant programs during Phase 1 to pay for the audit and the move to mainnet.
+Before choosing a revenue model, I'll ask Perpl whether a builder or referral fee is available. I plan to apply to Monad's grant programs to pay for the audit before mainnet.
 
 ### What we need from Monad
 
@@ -312,16 +284,12 @@ We'll ask Perpl whether a builder or referral fee is available before we pick a 
 - A spot in an ecosystem newsletter or demo day once the public testnet is live.
 - A direct line to the Perpl and Privy teams for integration feedback.
 
-### Why we'll keep building
-
-Mark My Words already places real orders on Monad testnet with required stops, take profits and reconciled results, and a first-time user has completed the whole journey alone. The hardest work was the execution layer around Perpl that handles unknown outcomes and duplicate sends. That part is built, and we'll open-source it so other Monad builders can reuse it. We don't have outside users or partners yet. Next we put the app in front of real traders, publish progress every week so you can check us against this roadmap, and launch on mainnet only after we hit the numbers above.
-
 ## Hackathon
 
 Built for Monad Metropolis (October 2026). Primary track: Onchain Finance & Trading. Bounties: Privy and Best use of Perpl's API.
 
 - Monad: every trade, deposit and exit settles on Monad testnet, and the app reads it back from finalized blocks.
-- Privy: email login creates the embedded wallet, which signs every funding transaction and the 24-hour trading session.
+- Privy: after email login, one tap creates the embedded wallet, which signs every funding transaction and the 24-hour trading session.
 - Perpl: the live book, candles, signed history, entries, trigger exits, amendments and reduce-only closes all go through Perpl's API.
 
 ## Built with and credits
