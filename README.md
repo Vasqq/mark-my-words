@@ -16,7 +16,7 @@ Write your call as one sentence and Mark My Words opens it as a real perp on **M
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](tsconfig.json)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
 
-[Demo video](https://www.youtube.com/watch?v=YoIrEk600Bg) · [Pitch video](https://www.youtube.com/watch?v=BAn_P6IdQqY) · [Try it](#for-judges-try-it-in-10-minutes) · [How it works](#how-a-sentence-becomes-a-trade) · [Onchain proof](#onchain-proof) · [Run locally](#run-it-locally) · [Architecture](#architecture) · [Roadmap](#roadmap)
+[Demo video](https://www.youtube.com/watch?v=YoIrEk600Bg) · [Pitch video](https://www.youtube.com/watch?v=BAn_P6IdQqY) · [Try it](#for-judges-try-it-in-10-minutes) · [How it works](#how-a-sentence-becomes-a-trade) · [Onchain proof](#onchain-proof) · [Architecture](#architecture) · [Roadmap](#roadmap)
 
 <br>
 
@@ -153,33 +153,6 @@ To try a short, press the **rises to** word: it flips to **falls to**, and the t
 
 > [!TIP]
 > For a tour without a wallet, open [`/?mode=demo`](https://mark-my-words-eu.onrender.com/?mode=demo). It uses sample data and never touches a chain.
-
-## Run it locally
-
-<details>
-<summary>Only needed to build from source. Judges can use the live app above.</summary>
-
-<br>
-
-You need Node 22.12 or newer.
-
-```bash
-npm ci
-cp .env.example .env.local
-npm run build
-PERPL_APP_ORIGIN=http://localhost:3000 PORT=3000 npm start
-```
-
-Open http://localhost:3000. `.env.example` holds only a public Privy app ID, and its allowed origin is `http://localhost:3000`, so use that exact origin and port.
-
-| Command         | What it does                                                                                            |
-| --------------- | ------------------------------------------------------------------------------------------------------- |
-| `npm run live`  | Rebuilds on change and serves http://localhost:3000                                                     |
-| `npm run check` | TypeScript and formatting                                                                               |
-| `npm test`      | Money math, long and short order encoding, duplicate-send and unknown-outcome prevention, main journeys |
-| `npm run build` | Production build into `dist/`                                                                           |
-
-</details>
 
 ## Architecture
 
