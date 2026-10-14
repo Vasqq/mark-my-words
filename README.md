@@ -7,7 +7,7 @@
 
 ### Say the trade. Place the trade.
 
-Write your call as one sentence and Mark My Words opens it as a real perp on **Monad testnet** through Perpl, through an interface anyone can use.
+Write your call as one sentence and Mark My Words opens it as a real perp on **Monad testnet** through Perpl, in an interface anyone can use.
 
 [![Monad testnet](https://img.shields.io/badge/Monad-testnet%2010143-836EF9)](https://testnet.monadexplorer.com)
 [![Perpl](https://img.shields.io/badge/Perpl-perps%20exchange-141210)](https://testnet.perpl.xyz)
@@ -41,12 +41,12 @@ Over Oct 12 and 13 my 2 test accounts logged 27 successful onchain transactions.
 ## What works on testnet
 
 > [!IMPORTANT]
-> The default route `/` runs against **Monad testnet (chain 10143)** and **Perpl's testnet exchange**. Selected transactions are listed under [Onchain proof](#onchain-proof).
+> The default route `/` runs against **Monad testnet (chain 10143)** and **Perpl's testnet exchange**.
 
 | Feature          | What you do                                                     | What happens                                                                                                                 |
 | ---------------- | --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
 | Sentence trading | Set profit goal, market, direction, target and stop in one line | The app sizes it across live Perpl book levels and shows fees, collateral and liquidation before you confirm                 |
-| Login            | Sign in with email through Privy                                | After email login, one tap creates an embedded wallet. You don't need an extension or seed phrase                            |
+| Login            | Sign in with email through Privy                                | One tap creates an embedded wallet. No extension or seed phrase                                                              |
 | Funding          | Claim from the faucet, approve, deposit, withdraw               | Each step is a wallet transaction you review, checked against its receipt                                                    |
 | One-tap session  | Sign once for 24 hours                                          | A trade-only Perpl API key, held by a browser key that page scripts can't read. It cannot withdraw                           |
 | Markets          | Trade ETH or BTC, long or short                                 | Two positions can be open at once, from 1x up to Perpl's maximum (ETH 12x, BTC 15x)                                          |
@@ -83,7 +83,7 @@ sequenceDiagram
 
 Everything here is on testnet. Explorer: [testnet.monadexplorer.com](https://testnet.monadexplorer.com).
 
-We use Perpl's and Monad's existing contracts and deployed none of our own:
+I use Perpl's and Monad's existing contracts and deployed none of my own:
 
 | Contract         | Address                                                                                                                              |
 | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
@@ -107,12 +107,7 @@ Selected transactions from a fresh email user's account, Oct 12 to 13, 2026:
 | Open long at 15x, Perpl's maximum                    | BTC          | [`0x772a…01a9`](https://testnet.monadexplorer.com/tx/0x772afa0253bde86f58214e81e72c0e471b711acaae0bad1f5f0d3833b78401a9) |
 
 > [!NOTE]
-> We set both triggers just past the market price so they would fire immediately, so these fills don't come from natural price moves. They show that Perpl executes the exit and the app picks it up without sending a close.
-
-<div align="center">
-<img src="verification/shots/tp-fire.png" alt="Take profit hit result card after Perpl executed the trigger" width="820">
-<br><sub>Perpl fired the take profit. The app found the fill in signed history and showed the result.</sub>
-</div>
+> I set both triggers just past the market price so they would fire immediately, so these fills don't come from natural price moves. They show that Perpl executes the exit and the app picks it up without sending a close.
 
 ## For judges: try it in 10 minutes
 
@@ -147,7 +142,7 @@ Press your **avatar** (top right), then **Add funds**. It can take a second to o
 
 ### 4. Close it
 
-Press **Close** (bottom right), then press **Close 0.082 ETH** (or whatever your size is) straight away. The same few-second limit applies; if Perpl rejects it, press **Prices moved · Refresh** and confirm again. Your balance returns to about $100 minus fees.
+Press **Close** (bottom right), then the **Close … ETH** button in the sheet straight away. The same few-second limit applies; if Perpl rejects it, press **Prices moved · Refresh** and confirm again. Your balance returns to about $100 minus fees.
 
 To try a short, press the **rises to** word: it flips to **falls to**, and the target and stop swap sides. You can hold one ETH and one BTC position at once, up to 12x on ETH and 15x on BTC.
 
@@ -211,7 +206,7 @@ These limits are deliberate. They live in [`src/testnet-limits.ts`](src/testnet-
 
 I'm a solo builder and new to Monad. Items marked _(Perpl)_ depend on Perpl's API, listings or approval.
 
-Next we make trading social. You follow traders whose calls you trust, read why they opened a position, and copy the ones you agree with, all on the same review and stop rules the app uses today.
+Next I make trading social. You follow traders whose calls you trust, read why they opened a position, and copy the ones you agree with, all on the same review and stop rules the app uses today.
 
 ### Phase 1: Copy trading, audit and a faster app (Q4 2026)
 
@@ -219,12 +214,12 @@ Next we make trading social. You follow traders whose calls you trust, read why 
 | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
 | Public testnet beta, with a simple public page for each trader showing their open trades                                                                                | 50 wallets complete a full journey from open to close                                                |
 | "Copy this trade": one tap on someone else's position opens the same trade in your account, at your own size and with your own required stop. You review and confirm it | Copied trades go through the same review, reconciliation and duplicate-send checks as normal entries |
-| UI and performance overhaul                                                                                                                                             | Time from fill to both exits placed cut by at least half (about 35 s in our testnet runs)            |
+| UI and performance overhaul                                                                                                                                             | Time from fill to both exits placed cut by at least half (about 20 to 35 s in my testnet runs)       |
 | Hackathon-era bugs and the issues beta users report                                                                                                                     | Every issue triaged within a week, and the fixes published in a public changelog                     |
 | Scoped security audit of the money math, session-key signing, order relay, duplicate-send prevention and copy trading                                                   | Report published, all high and critical issues fixed                                                 |
 
 > [!IMPORTANT]
-> **No mainnet before the audit.** We have no custom contracts, so the audit covers the code that carries the user's intent and signing authority: the client, the session keys, the relay and copy trading.
+> **No mainnet before the audit.** There are no custom contracts, so the audit covers the code that carries the user's intent and signing authority: the client, the session keys, the relay and copy trading.
 
 ### Phase 2: Profiles, follows and theses (Q1 to Q2 2027)
 
@@ -235,7 +230,7 @@ Next we make trading social. You follow traders whose calls you trust, read why 
 | Theses: a short note on why you took the trade, such as "New DefiLlama write-up has me bullish", shown with the position           | 25% of trades carry a thesis                                             |
 | Verified track records built from Perpl's signed history, so results can't be edited or faked                                      | Every profile shows win rate and P&L                                     |
 | Open-source the Perpl TypeScript client and order-safety layer: acknowledgment vs fill, unknown-outcome lock, duplicate-send guard | Published with docs and tests, and 1 outside project using or forking it |
-| Add to or reduce a position, add collateral, longer sessions that don't use up API keys _(Perpl)_                                  | At most 1 API key per user per day                                       |
+| Add to a position, longer sessions that don't use up API keys _(Perpl)_                                                            | At most 1 API key per user per day                                       |
 
 ### Phase 3: Automatic copy trading and staged mainnet (Q3 to Q4 2027)
 
@@ -249,7 +244,7 @@ Next we make trading social. You follow traders whose calls you trust, read why 
 
 Before choosing a revenue model, I'll ask Perpl whether a builder or referral fee is available. I plan to apply to Monad's grant programs to pay for the audit before mainnet.
 
-### What we need from Monad
+### What I need from Monad
 
 - An introduction to a security reviewer, and a grant or subsidy toward the audit.
 - Help with Perpl mainnet API access, origin approval and a higher API-key allowance.
@@ -280,7 +275,7 @@ Services: [Monad testnet](https://monad.xyz) and its [MON faucet](https://faucet
 
 The logo, brand files and screenshots were made for this project, and every screenshot is a capture of this app. The design reference in `docs/frontend/reference/` was also made for this project. It bundles React (MIT) and [htm](https://github.com/developit/htm) (Apache-2.0).
 
-AI disclosure: we used Claude Opus 5.5 to iterate on the frontend design before coding it for real, so the UI and UX were worked out first. The app itself was written with help from Claude Code and OpenAI Codex. Every testnet action was run and checked in the real app.
+AI disclosure: I used Claude Opus 5.5 to iterate on the frontend design before coding it for real, so the UI and UX were worked out first. The app itself was written with help from Claude Code and OpenAI Codex. Every testnet action was run and checked in the real app.
 
 <div align="center">
 <br>
