@@ -20,6 +20,8 @@ import { tradingStateFresh, type TradingState } from "./perpl-trading-state";
 import {
   integer,
   uuid,
+  closeConsumed,
+  entryConsumed,
   managementUnresolved,
   matchingRecordedProtection,
   refreshRecordedProtection,
@@ -110,6 +112,7 @@ export function lifecycleCommands(
         (o) =>
           o.id !== self &&
           managementUnresolved(o) &&
+          !closeConsumed(o, input.state) &&
           (input.action.kind !== "close" ||
             (["close", "partial-close"].includes(o.kind) &&
               // Past its last execution block (or never sent and expired) it can no
@@ -131,7 +134,9 @@ export function lifecycleCommands(
         (o) =>
           ["prepared", "submitting", "unknown", "forwarded"].includes(
             o.phase,
-          ) && !observedEntryPosition(o, input.state),
+          ) &&
+          !observedEntryPosition(o, input.state) &&
+          !entryConsumed(o, input.state),
       )
     )
       throw Error(
@@ -554,6 +559,89 @@ export function lifecycleCommands(
             };
           }
         }
+        // Order history and fills can trail position history by half a minute. The
+        // position's own event names this request and its transaction; the finalized
+        // receipt is then the proof, decoded within this request's segment only.
+        const ended = (history.positions ?? []).filter(
+          (r) =>
+            r.account === p.acc &&
+            r.market === p.mkt &&
+            r.positionId === op.positionId &&
+            r.request === p.rq &&
+            r.status === (op.kind === "close" ? 2 : 1),
+        );
+        const event = ended[0];
+        if (
+          op.phase !== "settled" &&
+          ended.length === 1 &&
+          event.hash &&
+          event.order > 0 &&
+          state.lastRequestId >= p.rq &&
+          state.sources.every((s) => s.block >= event.block)
+        ) {
+          const proof = await (readers.settlement ?? readEntrySettlement)(
+            p,
+            event.hash,
+          );
+          if (
+            proof &&
+            !proof.rejected &&
+            proof.filled > 0 &&
+            proof.hash.toLowerCase() === event.hash.toLowerCase() &&
+            proof.block === event.block &&
+            (op.kind === "close" ? !!proof.closed : !!proof.decreased) &&
+            (event.closeFee === undefined ||
+              BigInt(event.closeFee) === BigInt(proof.fee))
+          ) {
+            op.phase = "settled";
+            op.filled = proof.filled;
+            op.settlement = {
+              hash: proof.hash,
+              block: proof.block,
+              orderId: event.order,
+            };
+          }
+        }
+        // Past its last execution block a close can no longer execute. It provably did not
+        // when no position or account event carries its request and either
+        // - no order row carries it either, the order stream is indexed past that block,
+        //   and the signed read, also past it, still shows the whole position, or
+        // - position history ended the position under another request and any order row
+        //   of this request is a refusal with nothing filled.
+        const pastWindow =
+          state.lastRequestId >= p.rq &&
+          state.sources.every((s) => s.block > p.lb);
+        const position = state.positions.find(
+          (v) => v.id === op.positionId && v.market.marketId === p.mkt,
+        );
+        const endedElsewhere = (history.positions ?? []).some(
+          (r) =>
+            r.account === p.acc &&
+            r.market === p.mkt &&
+            r.positionId === op.positionId &&
+            [2, 3, 4, 5].includes(r.status) &&
+            r.request !== p.rq,
+        );
+        const mine = (r: { account: number; request: number }) =>
+          r.account === p.acc && r.request === p.rq;
+        // A refused request leaves a failed row with nothing filled; it never executed.
+        const failedRows = history.orders.filter(mine);
+        if (
+          managementUnresolved(op) &&
+          pastWindow &&
+          ![...history.accounts, ...(history.positions ?? [])].some(mine) &&
+          !state.orders.some((o) => o.request === p.rq) &&
+          ((op.kind === "close" &&
+            !failedRows.length &&
+            position?.size === BigInt(p.s) &&
+            history.orders.some(
+              (r) => r.account === p.acc && r.block > p.lb,
+            )) ||
+            (!position &&
+              endedElsewhere &&
+              failedRows.every((r) => r.status === 7 && r.filled === 0)))
+        )
+          op.phase = "rejected";
       }
       if (
         op.kind === "cancel" &&
@@ -598,6 +686,22 @@ export function lifecycleCommands(
           retireFamily(journal, op, p.oid!);
         }
       }
+      // The same end as a linked trigger's: with its position and its order gone and the
+      // request already processed, a cancellation has nothing left to act on.
+      if (
+        op.kind === "cancel" &&
+        managementUnresolved(op) &&
+        state.lastRequestId >= p.rq &&
+        !state.positions.some(
+          (v) => v.id === op.positionId && v.market.marketId === p.mkt,
+        ) &&
+        !state.orders.some(
+          (o) =>
+            o.market.marketId === p.mkt &&
+            (o.id === p.oid || o.request === p.rq),
+        )
+      )
+        op.phase = "superseded";
       // Cancellation ACKs and absent orders alone are insufficient.
       if (op.phase === "submitting") op.phase = "unknown";
       deps.save(journal);

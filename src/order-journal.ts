@@ -142,7 +142,9 @@ export function refreshRecordedProtection(
         (entry) =>
           entry.completion?.positionId === op.positionId &&
           entry.payload.mkt === op.payload.mkt,
-      )
+      ) ||
+      // Gone with its position, as current reads show; history will mark it cancelled.
+      closeConsumed(op, state)
     )
       continue;
     const matching = matchingRecordedProtection(op, state, journal.management);
@@ -614,7 +616,7 @@ export function readOrderJournal(
           (typeof op.collateralBefore === "string" &&
             /^\d{1,30}$/.test(op.collateralBefore)) ||
         (op.phase === "superseded" &&
-          ["close", "partial-close", "cancel"].includes(String(op.kind)))
+          ["close", "partial-close"].includes(String(op.kind)))
       )
         throw Error("Invalid collateral increase record.");
       if (
@@ -698,18 +700,79 @@ export function assertNoUnresolvedOrders(
     );
 }
 
+/*
+ * Perpl processes an account's requests in id order and refuses any id at or below the
+ * last one it processed. So once the signed read's lastRequestId reaches an
+ * acknowledged request, that request can no longer arrive or act. When the same read,
+ * checked against the finalized chain, also shows its position gone, nothing of it is
+ * left; only its accounting waits for history, which trails by 15 to 45 s. Neither
+ * applies to "unknown" (no acknowledgment) or to a resting trigger, which can still act.
+ */
+// Absence counts only from position and order reads at or past the wallet read that
+// showed the request processed; a lagging replica may not show it yet.
+const readsCurrent = (state: import("./perpl-trading-state").TradingState) => {
+  const wallet = state.sources.find((s) => s.name === "Wallet")?.block;
+  return (
+    wallet !== undefined &&
+    ["Positions", "Orders"].every((name) => {
+      const block = state.sources.find((s) => s.name === name)?.block;
+      return block !== undefined && block >= wallet;
+    })
+  );
+};
+export const closeConsumed = (
+  op: ManagementOperation,
+  state: import("./perpl-trading-state").TradingState,
+) =>
+  state.reconciled &&
+  readsCurrent(state) &&
+  state.lastRequestId >= op.payload.rq &&
+  !state.positions.some(
+    (p) => p.id === op.positionId && p.market.marketId === op.payload.mkt,
+  ) &&
+  ((op.kind === "close" && op.phase === "forwarded") ||
+    // A position's linked stop or target goes with it: the reconcile's "superseded".
+    (op.payload.tp !== undefined &&
+      op.payload.t !== 5 &&
+      !state.orders.some(
+        (o) =>
+          o.market.marketId === op.payload.mkt &&
+          (o.id === op.observedOrderId ||
+            o.id === op.payload.oid ||
+            o.request === op.payload.rq),
+      )));
+export const entryConsumed = (
+  op: OrderOperation,
+  state: import("./perpl-trading-state").TradingState,
+) =>
+  ["forwarded", "filled", "partial-fill"].includes(op.phase) &&
+  readsCurrent(state) &&
+  state.reconciled &&
+  state.lastRequestId >= op.payload.rq &&
+  (!op.settlement ||
+    state.sources.every((s) => s.block >= op.settlement!.block)) &&
+  !state.positions.some(
+    (p) =>
+      p.market.marketId === op.payload.mkt &&
+      (op.positionId === undefined || p.id === op.positionId),
+  );
+
 /** Entries serialize mutations account-wide, but proven active exposure blocks only its own market. */
 export function assertEntryAvailable(
   journal: Journal | null,
   state: import("./perpl-trading-state").TradingState,
   marketId: number,
 ) {
-  if (journal?.management?.some(managementUnresolved))
+  if (
+    journal?.management?.some(
+      (op) => managementUnresolved(op) && !closeConsumed(op, state),
+    )
+  )
     throw Error(
       "Resolve the recorded management mutation before another entry.",
     );
   for (const op of journal?.operations ?? []) {
-    if (!operationUnresolved(op)) continue;
+    if (!operationUnresolved(op) || entryConsumed(op, state)) continue;
     const position = state.positions.find(
       (p) =>
         p.market.marketId === op.payload.mkt &&

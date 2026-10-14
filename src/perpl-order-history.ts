@@ -158,7 +158,11 @@ function row(value: unknown, route: HistoryRoute): HistoryRow {
   };
 }
 
-/** At most sixteen sequential reads; interruptions/limits never imply absence of execution. */
+/**
+ * At most sixteen sequential reads; interruptions/limits never imply absence of execution.
+ * With `since` (ms), paging stops once a page reaches rows stamped before it: "complete"
+ * then means complete back to `since`, which covers every request sent after it.
+ */
 export async function readOrderHistory(
   read: (
     route: HistoryRoute,
@@ -166,6 +170,7 @@ export async function readOrderHistory(
     signal?: AbortSignal,
   ) => Promise<unknown>,
   signal?: AbortSignal,
+  since?: number,
 ): Promise<OrderHistory> {
   const result: OrderHistory = {
     orders: [],
@@ -213,8 +218,15 @@ export async function readOrderHistory(
               return parent.e.length ? parent.e : [value];
             })
           : response.d;
+      // Pages run newest to oldest, but position history groups events by position, so
+      // there only a page wholly older than `since` ends paging. A row without a stamp
+      // never ends paging early.
+      let older = since !== undefined && values.length > 0;
+      let last = false;
       for (const value of values) {
         const parsed = row(value, route);
+        last = since !== undefined && (parsed.time ?? since) < since;
+        if (!last) older = false;
         const encoded = JSON.stringify(parsed);
         const id =
           parsed.hash && parsed.log !== undefined
@@ -230,7 +242,12 @@ export async function readOrderHistory(
       }
       // A short page is the last page. Asking for the next one only spends a request
       // from the per-minute budget to receive an empty list.
-      if (response.np === "" || response.d.length < 100) break;
+      if (
+        response.np === "" ||
+        response.d.length < 100 ||
+        (route === "position-history" ? older : last)
+      )
+        break;
       if (cursors.has(response.np))
         throw Error("History cursor repeated. Retry reconciliation later.");
       cursors.add(response.np);
@@ -239,6 +256,30 @@ export async function readOrderHistory(
     }
   }
   return result;
+}
+
+/** Both reads' events, each once: newer rows first, then older ones only `previous` had. */
+export function mergeHistory(
+  next: OrderHistory,
+  previous?: OrderHistory,
+): OrderHistory {
+  if (!previous) return next;
+  // The same event identity readOrderHistory dedupes by; replicas may stamp it differently.
+  const id = (r: HistoryRow) =>
+    r.hash && r.log !== undefined
+      ? `${r.hash.toLowerCase()}:${r.log}:${r.order}:${r.positionId ?? 0}:${r.reason}`
+      : JSON.stringify(r);
+  const merge = (a: HistoryRow[] = [], b: HistoryRow[] = []) => {
+    const seen = new Set(a.map(id));
+    return [...a, ...b.filter((r) => !seen.has(id(r)))];
+  };
+  return {
+    orders: merge(next.orders, previous.orders),
+    fills: merge(next.fills, previous.fills),
+    accounts: merge(next.accounts, previous.accounts),
+    positions: merge(next.positions, previous.positions),
+    complete: next.complete && previous.complete,
+  };
 }
 
 /** A terminal history row alone cannot resolve a failed/duplicate request. */
