@@ -70,12 +70,15 @@ export function reconcileLifecycleCompletion(
     fees += BigInt(event.closeFee);
   }
   // The position no longer exists, so nothing recorded against it can still act on it.
+  // A sent close, cancel or collateral request is left to its own reconcile: history can
+  // show the position's end before it indexes the close that ended it, and only a request
+  // that was never sent may be called discarded.
   for (const op of journal.management ?? []) {
     if (op.positionId !== pid || op.payload.mkt !== entry.payload.mkt) continue;
     const protective = op.payload.tp !== undefined && op.payload.t !== 5;
     if (protective && (op.phase === "observed" || managementUnresolved(op)))
       op.phase = "cancelled";
-    else if (managementUnresolved(op)) op.phase = "discarded";
+    else if (op.phase === "prepared") op.phase = "discarded";
   }
   return {
     positionId: pid,

@@ -5,6 +5,7 @@ import { managementPayload } from "./perpl-lifecycle";
 import type { TradingState } from "./perpl-trading-state";
 import type { PublicMarketObservation } from "./perpl-market-data";
 import type { PublicDraft } from "./public-draft";
+import { RequestDeferred } from "./perpl-request-budget";
 const owner = "0x1111111111111111111111111111111111111111";
 const fixture = vi.hoisted(() => ({
   state: undefined as TradingState | undefined,
@@ -516,6 +517,26 @@ it("never sends a target after an unknown unobserved stop or authority change du
   expect(fixture.payloads).toHaveLength(2);
   expect(other.controller.getSnapshot().error).toContain("Account");
   other.controller.dispose();
+});
+it("reports a sent entry as pending when the request budget defers its follow-up read", async () => {
+  // Seen live: 104 signed reads in a minute deferred the read after the send, and the
+  // filled order was shown as failed with "Refresh account review".
+  const e = environment();
+  const review = await reviewed(e);
+  let deferred = false;
+  fixture.onRead = async () => {
+    if (fixture.payloads.length === 1 && !deferred) {
+      deferred = true;
+      throw new RequestDeferred(Date.now() + 1000);
+    }
+  };
+  const outcome = await settle(
+    e.controller.confirmEntry(review.id, e.draft, e.observation),
+  );
+  expect(deferred).toBe(true);
+  expect(outcome.state).toBe("pending");
+  expect(fixture.payloads.filter((p) => p.t === 1)).toHaveLength(1);
+  e.controller.dispose();
 });
 it("retires an unknown linked exit once its position and order are gone, without resending", async () => {
   const e = environment();

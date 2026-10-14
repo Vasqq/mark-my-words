@@ -33,7 +33,12 @@ import type { FundingWallet } from "../../../funding-application";
 import type { SessionTypedData } from "../../../perpl-session";
 import type { Hex } from "viem";
 import { executionEnabled } from "../../../../server/order-wire.mjs";
-import { positionProtection, assessProtection } from "../../../perpl-lifecycle";
+import {
+  positionProtection,
+  assessProtection,
+  observedEntryPosition,
+} from "../../../perpl-lifecycle";
+import type { TradingState } from "../../../perpl-trading-state";
 import { assessCloseReview } from "../../../perpl-close-review";
 import {
   accountFee,
@@ -68,30 +73,56 @@ const unavailable = async () => ({
   state: "unavailable" as const,
   reason: "Funding, account access and trading are not available yet.",
 });
+/** Records and positions that existed when an entry was sent. */
+type Opening = { ops: ReadonlySet<string>; positions: ReadonlySet<string> };
+/**
+ * The entry's position as Perpl shows it: settled from history, or, until history catches
+ * up (often 30 s or more), seen in the signed positions read. The journal record itself
+ * stays unresolved until history settles it.
+ */
+function entryPosition(
+  entry: Journal["operations"][number] | undefined,
+  trading: TradingState | undefined,
+  before: Opening["positions"],
+) {
+  if (!entry) return undefined;
+  if (entry.positionId && entry.filled)
+    return { id: entry.positionId, lots: BigInt(entry.filled) };
+  const p = trading && observedEntryPosition(entry, trading);
+  // A position that was already open before the send says nothing about this entry.
+  return p && !before.has(`${p.market.marketId}:${p.id}`)
+    ? { id: p.id, lots: p.size }
+    : undefined;
+}
 /** Both exits of a filled entry are registered on Perpl and seen in a signed read. */
 function entryProtected(
   journal: Journal | null | undefined,
   entry: Journal["operations"][number] | undefined,
+  trading: TradingState | undefined,
+  before: Opening["positions"],
 ) {
+  const position = entryPosition(entry, trading, before);
   const seen = (kind: "stop-loss" | "take-profit") =>
     !!journal?.management?.some(
       (op) =>
-        op.positionId === entry?.positionId &&
+        op.positionId === position?.id &&
+        op.payload.mkt === entry?.payload.mkt &&
         op.kind === kind &&
         op.phase === "observed",
     );
-  return !!entry?.positionId && seen("stop-loss") && seen("take-profit");
+  return !!position && seen("stop-loss") && seen("take-profit");
 }
 /** The reference progress list, driven by the real order record instead of a timer. */
 function openingSteps(
   journal: Journal | null | undefined,
-  known: ReadonlySet<string> | null,
+  trading: TradingState | undefined,
+  opening: Opening | null,
 ): Book["steps"] {
-  if (!known) return null;
-  const entry = journal?.operations.find((op) => !known.has(op.id));
+  if (!opening) return null;
+  const entry = journal?.operations.find((op) => !opening.ops.has(op.id));
   const sent = !!entry && !["prepared", "submitting"].includes(entry.phase);
-  const filled = !!entry?.filled;
-  const guarded = entryProtected(journal, entry);
+  const filled = !!entryPosition(entry, trading, opening.positions);
+  const guarded = entryProtected(journal, entry, trading, opening.positions);
   const step = (label: string, done: boolean, running: boolean) => ({
     label,
     st: done ? "done" : running ? "run" : "",
@@ -357,7 +388,7 @@ export function useLiveEngine(identity: LiveIdentity): PerplEngine {
     setTimeout(() => setToasts((x) => x.filter((y) => y.id !== id)), 8000);
   };
   // The entry being opened right now: every record that existed before it is "known".
-  const [opening, setOpening] = useState<ReadonlySet<string> | null>(null);
+  const [opening, setOpening] = useState<Opening | null>(null);
   const [dismissedResult, setDismissedResult] = useState<string | null>(() => {
     try {
       return localStorage.getItem(resultKey);
@@ -406,13 +437,42 @@ export function useLiveEngine(identity: LiveIdentity): PerplEngine {
   // A toast when a close, a moved exit or a cancellation is confirmed by Perpl. Records
   // that already existed when the page loaded are not announced again.
   const announced = useRef<Map<string, string> | null>(null);
+  // Full closes already announced from the signed read, so settlement does not repeat them.
+  const closed = useRef(new Set<string>());
   useEffect(() => {
     const operations = control.journal?.management;
     if (!operations) return;
     const before = announced.current;
     announced.current = new Map(operations.map((op) => [op.id, op.phase]));
-    if (!before) return;
+    if (!before) {
+      for (const op of operations) closed.current.add(op.id);
+      return;
+    }
+    const trading = control.trading;
     for (const op of operations) {
+      // Perpl's signed read shows the position gone about 4 s after the close; history
+      // settles it 10 to 45 s later. Announce the first.
+      if (
+        op.kind === "close" &&
+        ["forwarded", "unknown"].includes(op.phase) &&
+        !closed.current.has(op.id) &&
+        trading &&
+        trading.lastRequestId >= op.payload.rq &&
+        !trading.positions.some(
+          (p) => p.id === op.positionId && p.market.marketId === op.payload.mkt,
+        )
+      ) {
+        closed.current.add(op.id);
+        const m = metadataFor(op.payload.mkt);
+        if (m)
+          toast(
+            <b>
+              {"Closed "}
+              {display(BigInt(op.payload.s) * m.lot)} {m.symbol}
+            </b>,
+          );
+        continue;
+      }
       if (before.get(op.id) === op.phase) continue;
       const m = metadataFor(op.payload.mkt);
       if (!m) continue;
@@ -423,7 +483,7 @@ export function useLiveEngine(identity: LiveIdentity): PerplEngine {
         (op.payload.tpc === 4) === (op.side !== "Short")
           ? "Stop"
           : "Take profit";
-      if (op.phase === "settled" && op.filled)
+      if (op.phase === "settled" && op.filled && !closed.current.has(op.id))
         toast(
           <b>
             {"Closed "}
@@ -460,7 +520,7 @@ export function useLiveEngine(identity: LiveIdentity): PerplEngine {
           </>,
         );
     }
-  }, [control.journal]);
+  }, [control.journal, control.trading]);
   // An open position's exits are readable only with account access. Without it, offer the
   // authorization once per login instead of leaving the position half shown.
   const offeredAccess = useRef<typeof controller>(undefined);
@@ -1308,7 +1368,15 @@ export function useLiveEngine(identity: LiveIdentity): PerplEngine {
         snapshots[draft.market === "BTC" ? "BTC" : "ETH"].observation;
       if (!controller || !observation) return unavailable();
       const journal = () => controller.getSnapshot().journal;
-      setOpening(new Set(journal()?.operations.map((op) => op.id)));
+      const sentWith: Opening = {
+        ops: new Set(journal()?.operations.map((op) => op.id)),
+        positions: new Set(
+          controller
+            .getSnapshot()
+            .trading?.positions.map((p) => `${p.market.marketId}:${p.id}`),
+        ),
+      };
+      setOpening(sentWith);
       try {
         const outcome = await controller.confirmEntry(
           id,
@@ -1319,25 +1387,27 @@ export function useLiveEngine(identity: LiveIdentity): PerplEngine {
         // Keep the steps on screen until the stop and target are really registered.
         const entry = () =>
           journal()?.operations.find((op) => op.id === outcome.operationId);
+        const trading = () => controller.getSnapshot().trading;
         const deadline = Date.now() + 40000;
         while (
           Date.now() < deadline &&
           entry() &&
           !["rejected", "no-fill"].includes(entry()!.phase) &&
-          !entryProtected(journal(), entry())
+          !entryProtected(journal(), entry(), trading(), sentWith.positions)
         )
           await new Promise((resolve) => setTimeout(resolve, 400));
         const done = entry();
-        if (done?.filled) {
+        const position = entryPosition(done, trading(), sentWith.positions);
+        if (done && position) {
           const m = metadataFor(done.payload.mkt);
           toast(
             <>
               <b>
                 {"You\u2019re in: "}
-                {draft.side} {m ? display(BigInt(done.filled) * m.lot) : ""}{" "}
+                {draft.side} {m ? display(position.lots * m.lot) : ""}{" "}
                 {draft.market}
               </b>{" "}
-              {entryProtected(journal(), done)
+              {entryProtected(journal(), done, trading(), sentWith.positions)
                 ? "Take profit and stop are set."
                 : "Your stop is still being placed."}
             </>,
@@ -1680,7 +1750,7 @@ export function useLiveEngine(identity: LiveIdentity): PerplEngine {
     bk: {
       result,
       toasts,
-      steps: openingSteps(control.journal, opening),
+      steps: openingSteps(control.journal, control.trading, opening),
       clearResult: () => {
         if (!lastClose) return;
         setDismissedResult(lastClose.id);

@@ -17,6 +17,7 @@ import {
   orderJournalKey,
   assertNoUnresolvedOrders,
   assertEntryAvailable,
+  refreshRecordedProtection,
   validateManagementPayload,
 } from "./order-journal";
 import { describe, expect, it, vi } from "vitest";
@@ -579,7 +580,22 @@ describe("durable testnet order boundary", () => {
       { ...row, positionId: 99, side: 1, status: 1, reason: 21, size: 3 },
     ];
     expect((await app.reconcile(op.id, readers)).positionId).toBe(99);
-    await expect(app.prepare(h.input)).rejects.toThrow("Resolve");
+    // The partial fill's exposure is open on Perpl.
+    state.positions = [
+      {
+        id: 99,
+        market: state.markets[0],
+        side: "Long",
+        size: 3n,
+        entryPrice: BigInt(op.payload.p),
+        entryResidueQ16: 0,
+        collateral: 3n * U,
+        fees: 9n,
+      },
+    ];
+    expect(() => assertEntryAvailable(app.read(), state, 32)).toThrow(
+      "Resolve",
+    );
     expect(() => assertNoUnresolvedOrders(h.storage, owner)).toThrow(
       "exposure",
     );
@@ -1906,7 +1922,10 @@ describe("durable testnet order boundary", () => {
     await app.management.dispatch(close.id, async () => input);
     // The close fills, which cancels the linked exits and removes the position.
     state.lastRequestId = close.payload.rq;
-    history.positions!.push(event(102, 2, 13, "1000", "-5", "8"));
+    history.positions!.push({
+      ...event(102, 2, 13, "1000", "-5", "8"),
+      request: close.payload.rq,
+    });
     const entry = app.read()!.operations[0];
     const done = await app.reconcile(entry.id, {
       state: async () => state,
@@ -1926,7 +1945,96 @@ describe("durable testnet order boundary", () => {
     const phases = new Map(app.read()!.management!.map((o) => [o.id, o.phase]));
     expect(phases.get(tp.id)).toBe("cancelled");
     expect(phases.get(sl.id)).toBe("cancelled");
-    expect(phases.get(close.id)).toBe("discarded");
+    // Seen live: history showed the end before indexing the close's order row, and the
+    // sent close was relabeled "discarded" (never sent). It stays for its own reconcile,
+    // which settles it from the position event and its finalized receipt.
+    expect(phases.get(close.id)).toBe("forwarded");
+    const settled = await app.management.reconcile(close.id, {
+      state: async () => state,
+      history: async () => history,
+      settlement: async (_, hash) => ({
+        filled: 10,
+        fee: "8",
+        block: 102,
+        hash,
+        closed: { pnl: "1000", funding: "-5" },
+      }),
+    });
+    expect(settled).toMatchObject({
+      phase: "settled",
+      filled: 10,
+      settlement: { hash: `0x${"cd".repeat(32)}`, block: 102, orderId: 902 },
+    });
+  });
+  it("admits the next entry once a full close is processed, before history ends the position", async () => {
+    // Seen live: right after a close, the next entry was refused because its stop and
+    // target, gone with the position, were flipped to "unknown" while history lagged.
+    const { app, input, state } = await endedPosition();
+    const live = structuredClone(state);
+    live.positions = [
+      {
+        id: 99,
+        market: state.markets[0],
+        side: "Long",
+        size: 10n,
+        entryPrice: 250000n,
+        entryResidueQ16: 0,
+        collateral: 10n * U,
+        fees: 9n,
+      },
+    ];
+    input.state = live;
+    for (const [kind, id, condition, trigger, price] of [
+      ["take-profit", 901, 3, 300000, 298500],
+      ["stop-loss", 902, 4, 240000, 238800],
+    ] as const) {
+      input.action = { kind, positionId: 99, trigger, price };
+      const op = await app.management.prepare(input);
+      await app.management.dispatch(op.id, async () => input);
+      live.lastRequestId = op.payload.rq;
+      live.orders.push({
+        id,
+        request: op.payload.rq,
+        market: state.markets[0],
+        type: 3,
+        status: 8,
+        size: 10n,
+        filled: 0n,
+        price: BigInt(price),
+        flags: 4,
+        leverage: 0,
+        triggerCondition: condition,
+        triggerPrice: BigInt(trigger),
+        linkedPosition: 99,
+      });
+      await app.management.reconcile(op.id, {
+        state: async () => live,
+        history: async () => ({
+          orders: [],
+          fills: [],
+          accounts: [],
+          positions: [],
+          complete: true,
+        }),
+      });
+    }
+    input.action = { kind: "close", positionId: 99, price: 240000 };
+    const close = await app.management.prepare(input);
+    await app.management.dispatch(close.id, async () => input);
+    // The signed read: close processed, position and its exits gone. History has nothing yet.
+    state.lastRequestId = close.payload.rq;
+    state.sources.push(
+      { name: "Positions", block: 102, time: Date.now() },
+      { name: "Orders", block: 102, time: Date.now() },
+    );
+    const journal = app.read()!;
+    refreshRecordedProtection(journal, state);
+    // Their true end is "cancelled" with the position, not an unknown outcome.
+    expect(
+      journal.management!.filter((o) => o.kind !== "close").map((o) => o.phase),
+    ).toEqual(["observed", "observed"]);
+    expect(() => assertEntryAvailable(journal, state, 32)).not.toThrow();
+    expect(() => assertEntryAvailable(journal, live, 32)).toThrow("Resolve");
   });
   it("sums a partial close and the final close exactly once", async () => {
     const { journal, entry, state, history, event } = await endedPosition();
@@ -1980,9 +2088,37 @@ describe("durable testnet order boundary", () => {
       ...event(102, 2, 13, "-700", "0", "8"),
       order: 0,
     });
-    expect(() => assertEntryAvailable(app.read(), state, 32)).toThrow(
+    // While Perpl's reconciled read still shows the position, the entry blocks.
+    const open = structuredClone(state);
+    open.positions = [
+      {
+        id: 99,
+        market: state.markets[0],
+        side: "Long",
+        size: 10n,
+        entryPrice: 250000n,
+        entryResidueQ16: 0,
+        collateral: 10n * U,
+        fees: 9n,
+      },
+    ];
+    expect(() => assertEntryAvailable(app.read(), open, 32)).toThrow("Resolve");
+    // Seen live: once that read shows it gone and its request processed, waiting 15 to
+    // 45 s more for history only refused the next entry. Accounting still settles below.
+    const lagging = structuredClone(state);
+    lagging.sources.push(
+      { name: "Positions", block: 101, time: Date.now() },
+      { name: "Orders", block: 102, time: Date.now() },
+    );
+    // A positions replica behind the wallet read proves nothing about the fill.
+    expect(() => assertEntryAvailable(app.read(), lagging, 32)).toThrow(
       "Resolve",
     );
+    state.sources.push(
+      { name: "Positions", block: 102, time: Date.now() },
+      { name: "Orders", block: 102, time: Date.now() },
+    );
+    expect(() => assertEntryAvailable(app.read(), state, 32)).not.toThrow();
     const done = await app.reconcile(entry.id, readers);
     expect(done.completion).toMatchObject({
       orderId: 0,
@@ -1992,6 +2128,45 @@ describe("durable testnet order boundary", () => {
     expect(app.read()!.management ?? []).toHaveLength(0);
     expect(() => assertEntryAvailable(app.read(), state, 32)).not.toThrow();
     expect(() => assertNoUnresolvedOrders(h.storage, owner)).not.toThrow();
+  });
+  it("stops paging at rows older than every unresolved record", async () => {
+    // Seen live: re-reading 3 to 4 full order-history pages on every reconcile spent the
+    // minute's request budget, and a review right after a close was deferred.
+    const pages: string[] = [];
+    const rowAt = (time: number) => ({
+      at: { b: 100, t: time, txid: "ab".repeat(32), l: time },
+      acc: 1057,
+      mkt: 32,
+      oid: time,
+      rq: 1,
+      t: 1,
+      os: 1,
+      fs: 1,
+      st: 4,
+      p: 1,
+      f: "0",
+    });
+    const history = await readOrderHistory(
+      async (route, page) => {
+        pages.push(`${route}:${page ?? ""}`);
+        if (route !== "order-history") return { d: [], np: "" };
+        const first = page === undefined;
+        return {
+          d: Array.from({ length: 100 }, (_, i) =>
+            rowAt(first ? 5000 - i : 900 - i),
+          ),
+          np: first ? "next" : "after",
+        };
+      },
+      undefined,
+      1000,
+    );
+    expect(pages.filter((p) => p.startsWith("order-history"))).toEqual([
+      "order-history:",
+      "order-history:next",
+    ]);
+    expect(history.complete).toBe(true);
+    expect(history.orders).toHaveLength(200);
   });
   it("cancels a pending signed history page without starting later routes", async () => {
     const controller = new AbortController();

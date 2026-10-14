@@ -2108,12 +2108,14 @@ function App({ engine }: { engine: PerplEngine }) {
           liveId: fresh.id,
         });
         setQAt(fresh.expiresAt - QUOTE_LIFE * 1000);
-      }
+      } else setQAt(0);
       setBusyOpen(false);
     }
   };
   useEffect(() => {
-    if (engine.kind === "live") {
+    // A review being read or an order being sent changes authority on purpose; the
+    // review it produces, or the order's outcome, decides what the sheet shows next.
+    if (engine.kind === "live" && !busyOpen) {
       setAck(false);
       setReview((previous) =>
         previous?.liveId ? { ...previous, liveId: undefined } : previous,
@@ -2121,9 +2123,21 @@ function App({ engine }: { engine: PerplEngine }) {
       setQAt(0);
     }
   }, [engine.authorityRevision, engine.px.user?.addr]);
-  const age = busyOpen && engine.kind === "demo" ? 0 : (now - qAt) / 1000;
+  // Live: from the click until the order's steps finish, the sheet keeps the title and
+  // countdown it had when the order was sent.
+  const sending = useRef({ age: 0, adding: false });
+  const inFlight =
+    engine.kind === "live" && (!!bk.steps || (busyOpen && !!review?.liveId));
+  const age = inFlight
+    ? sending.current.age
+    : busyOpen && engine.kind === "demo"
+      ? 0
+      : (now - qAt) / 1000;
   const stale =
-    review && !(busyOpen && engine.kind === "demo") && age >= QUOTE_LIFE;
+    review &&
+    !(busyOpen && engine.kind === "demo") &&
+    !inFlight &&
+    age >= QUOTE_LIFE;
   useEffect(() => {
     if (stale) setAck(false);
   }, [stale]);
@@ -3507,7 +3521,9 @@ function App({ engine }: { engine: PerplEngine }) {
         >
           <div className={"dh"}>
             <h2 id={"rv-h"} tabIndex={-1} ref={drawerH}>
-              {adding ? "Add to your position" : "Your trade plan"}
+              {(inFlight ? sending.current.adding : adding)
+                ? "Add to your position"
+                : "Your trade plan"}
             </h2>
             {stale ? (
               <button className={"ghost"} onClick={startReview}>
@@ -3694,6 +3710,7 @@ function App({ engine }: { engine: PerplEngine }) {
                       return;
                     }
                     if (!ack || stale || busyOpen) return;
+                    sending.current = { age, adding: !!adding };
                     setBusyOpen(true);
                     const sent = await engine.confirmReview?.(
                       review.liveId,
@@ -3704,6 +3721,15 @@ function App({ engine }: { engine: PerplEngine }) {
                     if (sent?.state === "pending") {
                       setSel(review.draft.market);
                       setReview(null);
+                    } else {
+                      // The reviewed quote was spent or refused; only a new review can send.
+                      setAck(false);
+                      setReview((previous) =>
+                        previous
+                          ? { ...previous, liveId: undefined }
+                          : previous,
+                      );
+                      setQAt(0);
                     }
                     return;
                   }

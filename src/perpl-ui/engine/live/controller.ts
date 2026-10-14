@@ -33,6 +33,7 @@ import {
 } from "../../../perpl-trade-review";
 import { reviewPublicSizing } from "../../../perpl-sizing";
 import {
+  mergeHistory,
   readOrderHistory,
   type OrderHistory,
 } from "../../../perpl-order-history";
@@ -139,6 +140,38 @@ export function createLiveController(
   let taskAbort: AbortController | undefined;
   let deferred: ReturnType<typeof setTimeout> | undefined;
   let completeHistory: OrderHistory | undefined;
+  // Whether completeHistory includes a read to the end of every stream, for the History sheet.
+  let fullHistory = false;
+  const keepHistory = (history: OrderHistory, full = false) => {
+    if (!history.complete) return;
+    completeHistory = mergeHistory(history, completeHistory);
+    fullHistory ||= full;
+  };
+  // Every row of a request is stamped at or after its send, and a record is sent before its
+  // expiresAt. Older pages hold nothing an unresolved record can need. The margin covers
+  // clock skew between this browser and the chain's block times.
+  // Nothing on screen waits for history any more; only the journal's accounting does.
+  // Follow-up passes run every few seconds, so a read under 10 s old is reused rather
+  // than spending four of the minute's signed requests again. Older history only delays
+  // settlement; every rule that settles or rejects still needs positive rows.
+  let recent: { at: number; history: OrderHistory } | undefined;
+  const readRecent = async (
+    unresolved: { expiresAt: number }[],
+    force = false,
+  ): Promise<OrderHistory> => {
+    if (!force && recent && Date.now() - recent.at < 10_000)
+      return recent.history;
+    const at = Date.now();
+    const history = await readOrderHistory(
+      session.history,
+      taskAbort?.signal,
+      unresolved.length
+        ? Math.min(...unresolved.map((op) => op.expiresAt)) - 600_000
+        : undefined,
+    );
+    recent = { at, history };
+    return history;
+  };
   const publish = (patch: Partial<LiveControllerState>) => {
     if (!disposed) {
       state = { ...state, ...patch };
@@ -441,10 +474,11 @@ export function createLiveController(
       entries.some((op) => op.history !== "settled" || !op.positionId) ||
       // Only an unresolved close, amend or cancel needs history; finished ones do not.
       management.some((op) => !["stop-loss", "take-profit"].includes(op.kind));
+    const unresolved = [...entries, ...management];
     let history = historyRequired
-      ? await readOrderHistory(session.history, taskAbort?.signal)
+      ? await readRecent(unresolved, forceHistory)
       : completeHistory!;
-    if (historyRequired && history.complete) completeHistory = history;
+    if (historyRequired) keepHistory(history);
     const trading = await observed("recovery");
     if (
       !historyRequired &&
@@ -464,8 +498,8 @@ export function createLiveController(
         ) ||
         trading.lastRequestId > (journal?.highWater ?? 0))
     ) {
-      history = await readOrderHistory(session.history, taskAbort?.signal);
-      if (history.complete) completeHistory = history;
+      history = await readRecent(unresolved);
+      keepHistory(history);
     }
     const readers = {
       state: async () => trading,
@@ -553,6 +587,19 @@ export function createLiveController(
       throw cause;
     }
   };
+  // The order is already with Perpl; its journal record, not this read, carries the
+  // outcome. A deferred or failed follow-up read is retried by recover's own schedule
+  // and must not report a sent order as failed.
+  const followSent = async () => {
+    try {
+      await recover();
+    } catch (cause) {
+      if (!(cause instanceof RequestDeferred))
+        publish({
+          error: cause instanceof Error ? cause.message : String(cause),
+        });
+    }
+  };
   const controller = {
     getSnapshot: () => state,
     subscribe(fn: () => void) {
@@ -604,13 +651,11 @@ export function createLiveController(
           await observed();
           await recover();
           // History and the last Result come from signed history, journal or not.
-          if (!completeHistory) {
-            const history = await readOrderHistory(
-              session.history,
-              taskAbort?.signal,
+          if (!fullHistory)
+            keepHistory(
+              await readOrderHistory(session.history, taskAbort?.signal),
+              true,
             );
-            if (history.complete) completeHistory = history;
-          }
         }
         return true;
       }),
@@ -788,7 +833,7 @@ export function createLiveController(
         // Give the indexer a moment so the first reconcile usually sees the fill.
         await new Promise((resolve) => setTimeout(resolve, 1500));
         invalidate();
-        await recover();
+        await followSent();
         return op.id;
       });
       return result
@@ -1023,7 +1068,7 @@ export function createLiveController(
           throw Error("Perpl did not accept the request. Nothing changed.");
         await new Promise((resolve) => setTimeout(resolve, 1500));
         invalidate();
-        await recover();
+        await followSent();
         return op.id;
       });
       publish({ amending: undefined });
